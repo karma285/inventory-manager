@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>재고관리 + 바코드 스캔 (카메라 테스트 포함)</title>
+<title>재고관리 + 바코드 스캔 (디버깅용 alert 포함)</title>
 <style>
   body { font-family: Arial, sans-serif; max-width:600px; margin:auto; padding:20px; background:#f5f5f5; }
   h1 { text-align:center; color:#333; }
@@ -19,7 +19,7 @@
 </head>
 <body>
 
-<h1>📦 재고관리 + 바코드 스캔 (카메라 테스트 포함)</h1>
+<h1>📦 재고관리 + 바코드 스캔 (디버깅용 alert 포함)</h1>
 
 <!-- 카메라 테스트 -->
 <button id="testCamBtn">카메라 테스트</button>
@@ -134,30 +134,40 @@ testCamBtn.onclick = async () => {
   }
 };
 
-// 2) 모바일용 카메라 켜기 & 바코드 스캔
-cameraButton.onclick = () => {
+// 2) 모바일용 카메라 켜기 & 바코드 스캔 (alert 디버깅 포함)
+cameraButton.onclick = async () => {
   if(!isMobile){
     alert('이 기능은 모바일에서만 지원됩니다.');
     return;
   }
 
-  if(!html5QrcodeScanner){
-    html5QrcodeScanner = new Html5Qrcode("cameraArea");
-  }
+  try {
+    if(html5QrcodeScanner){
+      alert("기존 스캐너 중지 시도");
+      await html5QrcodeScanner.stop();
+      html5QrcodeScanner.clear();
+      html5QrcodeScanner = null;
+      alert("기존 스캐너 중지 완료");
+    }
 
-  Html5Qrcode.getCameras().then(cameras=>{
+    html5QrcodeScanner = new Html5Qrcode("cameraArea");
+
+    const cameras = await Html5Qrcode.getCameras();
+    alert(`카메라 갯수: ${cameras.length}`);
+
     if(cameras && cameras.length){
       const backCam = cameras.find(cam=> /back|rear|environment/i.test(cam.label)) || cameras[0];
       cameraButton.style.display = 'none';
       scannerButton.style.display = 'none';
-
-      // 카메라Area 높이 지정 (중요!)
       cameraArea.style.height = '300px';
 
-      html5QrcodeScanner.start(
+      alert(`카메라 실행 시도: ${backCam.label}`);
+
+      await html5QrcodeScanner.start(
         backCam.id,
         {fps:10, qrbox:250},
         decodedText=>{
+          alert(`바코드 인식: ${decodedText}`);
           productBarcodeInput.value = decodedText;
           if(!productNameInput.value.trim()) productNameInput.value = '스캔상품';
           if(!productQuantityInput.value.trim()) productQuantityInput.value = '1';
@@ -165,26 +175,27 @@ cameraButton.onclick = () => {
           addItem(productNameInput.value, productQuantityInput.value, productBarcodeInput.value);
 
           html5QrcodeScanner.stop().then(()=>{
+            alert("스캔 중지 완료");
             cameraArea.style.height = '0';
             cameraButton.style.display = 'inline-block';
             scannerButton.style.display = 'inline-block';
           });
         },
         err => {
-          // 스캔 에러 무시
+          console.warn("스캔 에러:", err);
         }
-      ).catch(err=>{
-        alert('카메라 실행 오류: ' + err);
-        cameraArea.style.height = '0';
-        cameraButton.style.display = 'inline-block';
-        scannerButton.style.display = 'inline-block';
-      });
+      );
+
+      alert("카메라 시작 성공");
     } else {
       alert('카메라를 찾을 수 없습니다.');
     }
-  }).catch(err=>{
-    alert('카메라 권한 오류: ' + err);
-  });
+  } catch(err) {
+    alert('카메라 실행 오류: ' + err);
+    cameraArea.style.height = '0';
+    cameraButton.style.display = 'inline-block';
+    scannerButton.style.display = 'inline-block';
+  }
 };
 
 // 3) PC용 바코드 스캐너 안내
