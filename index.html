@@ -62,8 +62,6 @@ const inventoryTable = document.getElementById('inventoryTable');
 
 let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
 
-let html5QrcodeScanner = null;
-
 // 재고 렌더링 함수
 function renderInventory(){
   inventoryTable.innerHTML = '';
@@ -123,13 +121,15 @@ cameraButton.onclick = async () => {
   }
 
   try {
-    if(html5QrcodeScanner){
-      await html5QrcodeScanner.stop();
-      await html5QrcodeScanner.clear();
-      html5QrcodeScanner = null;
+    // 이미 스캐너가 있다면 중지
+    if(window.html5QrcodeScanner){
+      await window.html5QrcodeScanner.stop();
+      await window.html5QrcodeScanner.clear();
+      window.html5QrcodeScanner = null;
     }
 
-    html5QrcodeScanner = new Html5Qrcode("cameraArea");
+    // 새 스캐너 생성
+    window.html5QrcodeScanner = new Html5Qrcode("cameraArea");
 
     const cameras = await Html5Qrcode.getCameras();
 
@@ -139,7 +139,7 @@ cameraButton.onclick = async () => {
       scannerButton.style.display = 'none';
       cameraArea.style.height = '300px';
 
-      await html5QrcodeScanner.start(
+      await window.html5QrcodeScanner.start(
         backCam.id,
         {fps:10, qrbox:250},
         decodedText=>{
@@ -149,9 +149,9 @@ cameraButton.onclick = async () => {
 
           addItem(productNameInput.value, productQuantityInput.value, productBarcodeInput.value);
 
-          html5QrcodeScanner.stop().then(async () => {
-            await html5QrcodeScanner.clear();
-            html5QrcodeScanner = null;
+          window.html5QrcodeScanner.stop().then(async () => {
+            await window.html5QrcodeScanner.clear();
+            window.html5QrcodeScanner = null;
             cameraArea.style.height = '0';
             cameraArea.innerHTML = '';
             cameraButton.style.display = 'inline-block';
