@@ -1,23 +1,202 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>기본 카메라 테스트</title></head>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>재고관리 + 바코드 스캔 (iOS17 최적화)</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width:600px; margin:auto; padding:20px; background:#f5f5f5; }
+  h1 { text-align:center; color:#333; }
+  input, button { width:100%; padding:10px; margin:5px 0; box-sizing:border-box; }
+  #cameraArea { width: 100%; border:1px solid #ccc; margin-top:10px; height: 0; overflow: hidden; }
+  table { width:100%; border-collapse: collapse; margin-top:20px; background:#fff; }
+  th, td { border:1px solid #ddd; padding:8px; text-align:center; }
+  th { background:#4CAF50; color:#fff; }
+  .delete-btn { background:#e74c3c; color:#fff; border:none; padding:5px 10px; cursor:pointer; }
+  .delete-btn:hover { background:#c0392b; }
+</style>
+</head>
 <body>
-<button id="startCam">카메라 켜기</button>
-<video id="video" autoplay playsinline style="width:100%;max-width:400px;border:1px solid #ccc;"></video>
+
+<h1>📦 재고관리 + 바코드 스캔 (iOS 17 최적화)</h1>
+
+<div>
+  <button id="cameraButton">카메라 켜기 (모바일)</button>
+  <button id="scannerButton">바코드 스캔 시작 (PC)</button>
+</div>
+
+<div id="cameraArea"></div>
+
+<div>
+  <label>상품명</label>
+  <input type="text" id="productName" placeholder="상품명을 입력하세요" />
+  <label>수량</label>
+  <input type="number" id="productQuantity" placeholder="수량을 입력하세요" />
+  <label>바코드 번호</label>
+  <input type="text" id="productBarcode" placeholder="바코드 번호를 입력하세요" />
+  <button id="addButton">상품 추가</button>
+</div>
+
+<table>
+  <thead>
+    <tr><th>상품명</th><th>수량</th><th>바코드</th><th>삭제</th></tr>
+  </thead>
+  <tbody id="inventoryTable"></tbody>
+</table>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
 
 <script>
-  const startCamBtn = document.getElementById('startCam');
-  const video = document.getElementById('video');
+window.addEventListener('DOMContentLoaded', () => {
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  startCamBtn.onclick = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      video.srcObject = stream;
-      alert("카메라 실행 성공");
-    } catch(e) {
-      alert("카메라 실행 실패: " + e.message);
+  const cameraButton = document.getElementById('cameraButton');
+  const scannerButton = document.getElementById('scannerButton');
+  const cameraArea = document.getElementById('cameraArea');
+
+  const productNameInput = document.getElementById('productName');
+  const productQuantityInput = document.getElementById('productQuantity');
+  const productBarcodeInput = document.getElementById('productBarcode');
+  const addButton = document.getElementById('addButton');
+  const inventoryTable = document.getElementById('inventoryTable');
+
+  let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
+
+  let html5QrcodeScanner = null;
+
+  // 재고 렌더링 함수
+  function renderInventory(){
+    inventoryTable.innerHTML = '';
+    if(inventory.length === 0){
+      inventoryTable.innerHTML = '<tr><td colspan="4">등록된 상품이 없습니다.</td></tr>';
+      return;
     }
+    inventory.forEach((item, idx)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${item.name}</td>
+        <td>${item.quantity}</td>
+        <td>${item.barcode}</td>
+        <td><button class="delete-btn" data-idx="${idx}">삭제</button></td>
+      `;
+      inventoryTable.appendChild(tr);
+    });
+    document.querySelectorAll('.delete-btn').forEach(btn=>{
+      btn.onclick = e => {
+        const idx = e.target.getAttribute('data-idx');
+        inventory.splice(idx,1);
+        localStorage.setItem('inventory', JSON.stringify(inventory));
+        renderInventory();
+      }
+    });
   }
+
+  // 재고 추가 함수
+  function addItem(name, quantity, barcode){
+    if(!name || !quantity || !barcode){
+      alert('모든 항목을 입력해주세요.');
+      return false;
+    }
+    if(isNaN(quantity) || quantity <= 0){
+      alert('수량은 1 이상의 숫자여야 합니다.');
+      return false;
+    }
+    inventory.push({name, quantity: Number(quantity), barcode});
+    localStorage.setItem('inventory', JSON.stringify(inventory));
+    renderInventory();
+    return true;
+  }
+
+  addButton.onclick = () => {
+    if(addItem(productNameInput.value.trim(), productQuantityInput.value.trim(), productBarcodeInput.value.trim())){
+      productNameInput.value = '';
+      productQuantityInput.value = '';
+      productBarcodeInput.value = '';
+    }
+  };
+
+  // 모바일용 카메라 켜기 & 바코드 스캔
+  cameraButton.onclick = async () => {
+    if(!isMobile){
+      alert('이 기능은 모바일에서만 지원됩니다.');
+      return;
+    }
+
+    try {
+      if(html5QrcodeScanner){
+        await html5QrcodeScanner.stop();
+        await html5QrcodeScanner.clear();
+        html5QrcodeScanner = null;
+      }
+
+      html5QrcodeScanner = new Html5Qrcode("cameraArea");
+
+      const cameras = await Html5Qrcode.getCameras();
+
+      if(cameras && cameras.length){
+        const backCam = cameras.find(cam=> /back|rear|environment/i.test(cam.label)) || cameras[0];
+        cameraButton.style.display = 'none';
+        scannerButton.style.display = 'none';
+        cameraArea.style.height = '300px';
+
+        await html5QrcodeScanner.start(
+          backCam.id,
+          {fps:10, qrbox:250},
+          decodedText=>{
+            productBarcodeInput.value = decodedText;
+            if(!productNameInput.value.trim()) productNameInput.value = '스캔상품';
+            if(!productQuantityInput.value.trim()) productQuantityInput.value = '1';
+
+            addItem(productNameInput.value, productQuantityInput.value, productBarcodeInput.value);
+
+            html5QrcodeScanner.stop().then(async () => {
+              await html5QrcodeScanner.clear();
+              html5QrcodeScanner = null;
+              cameraArea.style.height = '0';
+              cameraArea.innerHTML = '';
+              cameraButton.style.display = 'inline-block';
+              scannerButton.style.display = 'inline-block';
+            });
+          },
+          err => {
+            console.warn("스캔 에러:", err);
+          }
+        );
+
+      } else {
+        alert('카메라를 찾을 수 없습니다.');
+      }
+    } catch(err) {
+      alert('카메라 실행 오류: ' + err);
+      cameraArea.style.height = '0';
+      cameraArea.innerHTML = '';
+      cameraButton.style.display = 'inline-block';
+      scannerButton.style.display = 'inline-block';
+    }
+  };
+
+  // PC용 바코드 스캐너 안내
+  scannerButton.onclick = () => {
+    alert('PC에서는 바코드 스캐너를 바코드 번호 입력란에 포커스를 두고 사용하세요.');
+    productBarcodeInput.focus();
+  };
+
+  // 엔터 눌렀을 때 자동 추가
+  productBarcodeInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){
+      if(!productNameInput.value.trim()) productNameInput.value = '스캔상품';
+      if(!productQuantityInput.value.trim()) productQuantityInput.value = '1';
+      if(addItem(productNameInput.value, productQuantityInput.value, productBarcodeInput.value)){
+        productNameInput.value = '';
+        productQuantityInput.value = '';
+        productBarcodeInput.value = '';
+      }
+    }
+  });
+
+  renderInventory();
+});
 </script>
+
 </body>
 </html>
