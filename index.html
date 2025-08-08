@@ -1,19 +1,22 @@
-const cameras = await Html5Qrcode.getCameras();
-if (cameras && cameras.length) {
-  // 후면 카메라 찾기, 없으면 첫 카메라 사용
-  const backCam = cameras.find(cam => /back|rear|environment/i.test(cam.label)) || cameras[0];
-  
-  await html5QrCode.start(
-    backCam.id, // 반드시 카메라 ID 문자열
-    { fps: 10, qrbox: 250 },
-    decodedText => {
-      // 바코드 인식 시 처리
-      console.log("스캔된 바코드:", decodedText);
-    },
-    errorMessage => {
-      // 스캔 실패 시 처리 (옵션)
-    }
-  );
-} else {
-  alert("카메라가 없습니다.");
-}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>사파리 카메라 테스트</title>
+</head>
+<body>
+  <h2>사파리 카메라 테스트</h2>
+  <video id="video" autoplay playsinline muted style="width:100%; max-width:400px; border:1px solid #ccc;"></video>
+  <script>
+    const video = document.getElementById('video');
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        alert('카메라 접근 실패: ' + err.message);
+      });
+  </script>
+</body>
+</html>
