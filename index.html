@@ -185,10 +185,24 @@
 
         renderInventory();
 
+        // 카메라 권한 요청 함수
+        async function requestCameraPermission() {
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                return true;
+            } catch(e) {
+                alert("카메라 권한이 필요합니다. 설정에서 권한을 허용해주세요.");
+                return false;
+            }
+        }
+
         // 바코드 스캔 관련
         let html5QrcodeScanner;
 
-        startScanButton.addEventListener('click', () => {
+        startScanButton.addEventListener('click', async () => {
+            const hasPermission = await requestCameraPermission();
+            if (!hasPermission) return;
+
             startScanButton.style.display = 'none';
             stopScanButton.style.display = 'inline-block';
 
