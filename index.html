@@ -3,58 +3,27 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Html5Qrcode 테스트 (iOS용)</title>
+<title>iOS 17 카메라 권한 테스트</title>
 </head>
 <body>
 
-<h1>Html5Qrcode 테스트</h1>
-
-<div id="cameraArea" style="width:300px; height:300px; border:1px solid #ccc;"></div>
-<button id="startBtn">카메라 시작/중지</button>
-
-<script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+<h1>iOS 17 카메라 권한 테스트</h1>
+<button id="startBtn">카메라 켜기</button>
+<video id="video" autoplay playsinline muted style="width:300px; height:400px; border:1px solid #ccc;"></video>
 
 <script>
-  const startBtn = document.getElementById('startBtn');
-  let scanner = null;
-  let isScanning = false;
+const startBtn = document.getElementById('startBtn');
+const video = document.getElementById('video');
 
-  startBtn.addEventListener('click', async () => {
-    if(isScanning){
-      await scanner.stop();
-      scanner.clear();
-      scanner = null;
-      isScanning = false;
-      startBtn.textContent = "카메라 시작";
-      return;
-    }
-
-    scanner = new Html5Qrcode("cameraArea");
-    try {
-      const devices = await Html5Qrcode.getCameras();
-      if(devices && devices.length){
-        // iOS 환경이면 facingMode 사용 안하고 첫 번째 카메라만 사용
-        let cameraId = devices[0].id;
-
-        await scanner.start(
-          cameraId,
-          { fps: 10, qrbox: {width: 250, height: 250} },
-          decodedText => {
-            alert("인식된 바코드: " + decodedText);
-          },
-          errorMessage => {
-            // console.warn('스캔 에러:', errorMessage);
-          }
-        );
-        isScanning = true;
-        startBtn.textContent = "카메라 중지";
-      } else {
-        alert("카메라가 없습니다.");
-      }
-    } catch (err) {
-      alert("카메라 시작 오류: " + err);
-    }
-  });
+startBtn.onclick = () => {
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    .then(stream => {
+      video.srcObject = stream;
+    })
+    .catch(err => {
+      alert("카메라 권한 에러: " + err.message);
+    });
+};
 </script>
 
 </body>
