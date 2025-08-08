@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Html5Qrcode 테스트</title>
+<title>Html5Qrcode 테스트 (iOS용)</title>
 </head>
 <body>
 
@@ -33,10 +33,19 @@
     try {
       const devices = await Html5Qrcode.getCameras();
       if(devices && devices.length){
-        const cameraId = devices[0].id;
-        await scanner.start(cameraId, {fps: 10, qrbox: 250}, (decodedText) => {
-          alert("인식된 바코드: " + decodedText);
-        });
+        // iOS 환경이면 facingMode 사용 안하고 첫 번째 카메라만 사용
+        let cameraId = devices[0].id;
+
+        await scanner.start(
+          cameraId,
+          { fps: 10, qrbox: {width: 250, height: 250} },
+          decodedText => {
+            alert("인식된 바코드: " + decodedText);
+          },
+          errorMessage => {
+            // console.warn('스캔 에러:', errorMessage);
+          }
+        );
         isScanning = true;
         startBtn.textContent = "카메라 중지";
       } else {
