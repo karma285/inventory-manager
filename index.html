@@ -1,15 +1,19 @@
-// 스캔 시작
-  await html5QrCode.start(
-    { facingMode: { exact: "environment" } }, // 후면 카메라 명확히 지정
-    { fps: 10, qrbox: 250 },
-    (decodedText) => {
-      // 바코드 혹은 QR코드 인식 시 콜백
-      barcodeResult.value = decodedText;
-      // 필요하면 스캔 자동 중지
-      // html5QrCode.stop();
-    },
-    (errorMessage) => {
-      // 스캔 실패 시 콜백 (에러 무시 가능)
-      // console.log('스캔 에러:', errorMessage);
-    }
-  );
+const cameras = await Html5Qrcode.getCameras();
+if (cameras && cameras.length) {
+  // 후면 카메라 찾기, 없으면 첫 카메라 사용
+  const backCam = cameras.find(cam => /back|rear|environment/i.test(cam.label)) || cameras[0];
+  
+  await html5QrCode.start(
+    backCam.id, // 반드시 카메라 ID 문자열
+    { fps: 10, qrbox: 250 },
+    decodedText => {
+      // 바코드 인식 시 처리
+      console.log("스캔된 바코드:", decodedText);
+    },
+    errorMessage => {
+      // 스캔 실패 시 처리 (옵션)
+    }
+  );
+} else {
+  alert("카메라가 없습니다.");
+}
