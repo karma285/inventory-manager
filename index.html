@@ -306,12 +306,17 @@
                         productNameInput.value = inventory[barcode].productName;
                         imageUrlInput.value = inventory[barcode].imageUrl;
                     } else {
-                        // 새로운 바코드인 경우 입력 필드를 비워줌
                         productNameInput.value = '';
                         imageUrlInput.value = '';
                     }
-
-                    productNameInput.focus();
+                    
+                    // 스캔 즉시 재고 1 증가
+                    handleInventoryChange(1);
+                    
+                    // 입력 필드를 비워 다음 스캔을 준비
+                    barcodeInput.value = '';
+                    productNameInput.value = '';
+                    imageUrlInput.value = '';
                 }
             });
         }
@@ -349,9 +354,6 @@
             }
             
             localStorage.setItem('inventory', JSON.stringify(inventory));
-            barcodeInput.value = '';
-            productNameInput.value = '';
-            imageUrlInput.value = '';
             renderInventory();
         }
 
