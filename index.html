@@ -69,6 +69,7 @@
             width: 100%;
             margin-top: 20px;
             border: 1px solid #ddd;
+            min-height: 250px;
         }
     </style>
 </head>
@@ -196,12 +197,11 @@
             Html5Qrcode.getCameras().then(cameras => {
                 if (cameras && cameras.length) {
                     let cameraId = cameras[0].id;
-                    for (let cam of cameras) {
-                        if (cam.label.toLowerCase().includes('back')) {
-                            cameraId = cam.id;
-                            break;
-                        }
-                    }
+
+                    // 후면 카메라 명확하게 선택
+                    const backCamera = cameras.find(cam => /back|rear|environment/gi.test(cam.label));
+                    if (backCamera) cameraId = backCamera.id;
+
                     html5QrcodeScanner.start(
                         cameraId,
                         {
@@ -228,7 +228,7 @@
                             stopScanning();
                         },
                         (errorMessage) => {
-                            // 무시
+                            // 에러 무시
                         }
                     ).catch(err => {
                         alert(`카메라 시작 실패: ${err}`);
