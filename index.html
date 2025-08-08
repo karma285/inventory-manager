@@ -301,7 +301,7 @@
                 if (data && data.codeResult) {
                     const barcode = data.codeResult.code;
                     displayScannedBarcode(barcode);
-                    Quagga.stop(); // 스캔 후 카메라 정지
+                    Quagga.stop();
                     isScanning = false;
                     startButton.style.display = 'inline-block';
                     endScanButton.style.display = 'none';
@@ -324,8 +324,9 @@
             if (inventory[barcode]) {
                 productNameInput.value = inventory[barcode].productName;
                 imageUrlInput.value = inventory[barcode].imageUrl;
+                productNameInput.placeholder = '상품명을 입력하세요'; // 기존 상품은 placeholder 초기화
             } else {
-                productNameInput.value = ''; // 신규 상품이므로 상품명 입력란을 비워둠
+                productNameInput.value = '';
                 imageUrlInput.value = '';
                 productNameInput.placeholder = '새로운 상품입니다. 상품명을 입력해주세요.';
             }
@@ -338,7 +339,6 @@
                 return;
             }
 
-            // 신규 상품 등록 로직
             if (inventory[barcode] === undefined) {
                 const productName = productNameInput.value.trim();
                 const imageUrl = imageUrlInput.value.trim();
@@ -358,7 +358,7 @@
                     alert('새로운 상품은 입고만 가능합니다.');
                     return;
                 }
-            } else { // 기존 상품 입출고 로직
+            } else {
                 inventory[barcode].quantity += change;
                 if (inventory[barcode].quantity < 0) {
                     inventory[barcode].quantity = 0;
@@ -371,7 +371,7 @@
             barcodeInput.value = '';
             productNameInput.value = '';
             imageUrlInput.value = '';
-            productNameInput.placeholder = '상품명을 입력하세요'; // placeholder 초기화
+            productNameInput.placeholder = '상품명을 입력하세요';
             renderInventory();
         }
 
