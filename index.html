@@ -299,14 +299,7 @@
             Quagga.onDetected(function(data) {
                 if (data && data.codeResult) {
                     const barcode = data.codeResult.code;
-
-                    // 스캔된 바코드로 즉시 재고 1 증가
-                    handleInventoryChange(1, barcode);
-
-                    // 입력 필드를 비워 다음 스캔을 준비
-                    barcodeInput.value = '';
-                    productNameInput.value = '';
-                    imageUrlInput.value = '';
+                    displayScannedBarcode(barcode);
                 }
             });
         }
@@ -320,10 +313,22 @@
             }
         }
 
-        function handleInventoryChange(change, scannedBarcode = null) {
-            const barcode = scannedBarcode || barcodeInput.value.trim();
-            if (!barcode) {
-                alert('바코드를 입력해주세요.');
+        function displayScannedBarcode(barcode) {
+            barcodeInput.value = barcode;
+            
+            if (inventory[barcode]) {
+                productNameInput.value = inventory[barcode].productName;
+                imageUrlInput.value = inventory[barcode].imageUrl;
+            } else {
+                productNameInput.value = '새로운 상품입니다.';
+                imageUrlInput.value = '';
+            }
+        }
+
+        function handleInventoryChange(change) {
+            const barcode = barcodeInput.value.trim();
+            if (!barcode || inventory[barcode] === undefined) {
+                alert('바코드가 존재하지 않거나 새로운 상품은 수동으로 등록해야 합니다.');
                 return;
             }
             
@@ -335,15 +340,20 @@
                 if (inventory[barcode].quantity < 0) {
                     inventory[barcode].quantity = 0;
                 }
+                alert(`${inventory[barcode].productName} 상품이 ${change > 0 ? '입고' : '출고'}되었습니다. (현재 수량: ${inventory[barcode].quantity})`);
             } else if (change > 0) {
                 inventory[barcode] = {
                     productName,
                     imageUrl,
                     quantity: change
                 };
+                alert(`${productName} 상품이 새로 등록 및 입고되었습니다. (현재 수량: ${inventory[barcode].quantity})`);
             }
             
             localStorage.setItem('inventory', JSON.stringify(inventory));
+            barcodeInput.value = '';
+            productNameInput.value = '';
+            imageUrlInput.value = '';
             renderInventory();
         }
 
@@ -401,6 +411,14 @@
         takeOutButton.addEventListener('click', () => handleInventoryChange(-1));
         exportButton.addEventListener('click', exportToCsv);
         importFile.addEventListener('change', importFromCsv);
+
+        // PC 바코드 스캐너 입력 감지
+        document.addEventListener('keydown', (e) => {
+            // Enter 키 입력 시 바코드로 인식
+            if (e.key === 'Enter' && barcodeInput.value.length > 0) {
+                displayScannedBarcode(barcodeInput.value);
+            }
+        });
 
         // 초기 재고 목록 렌더링
         renderInventory();
