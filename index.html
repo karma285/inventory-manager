@@ -299,20 +299,10 @@
             Quagga.onDetected(function(data) {
                 if (data && data.codeResult) {
                     const barcode = data.codeResult.code;
-                    barcodeInput.value = barcode;
-                    
-                    // 기존 등록된 바코드인지 확인하고 정보 자동 입력
-                    if (inventory[barcode]) {
-                        productNameInput.value = inventory[barcode].productName;
-                        imageUrlInput.value = inventory[barcode].imageUrl;
-                    } else {
-                        productNameInput.value = '';
-                        imageUrlInput.value = '';
-                    }
-                    
-                    // 스캔 즉시 재고 1 증가
-                    handleInventoryChange(1);
-                    
+
+                    // 스캔된 바코드로 즉시 재고 1 증가
+                    handleInventoryChange(1, barcode);
+
                     // 입력 필드를 비워 다음 스캔을 준비
                     barcodeInput.value = '';
                     productNameInput.value = '';
@@ -330,8 +320,8 @@
             }
         }
 
-        function handleInventoryChange(change) {
-            const barcode = barcodeInput.value.trim();
+        function handleInventoryChange(change, scannedBarcode = null) {
+            const barcode = scannedBarcode || barcodeInput.value.trim();
             if (!barcode) {
                 alert('바코드를 입력해주세요.');
                 return;
