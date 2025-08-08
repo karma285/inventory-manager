@@ -17,43 +17,63 @@
     border: 1px solid #ddd;
     margin-top: 20px;
   }
+  button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
 <h1>📷 카메라 & 바코드 스캔 테스트</h1>
-<div id="reader"></div>
+<button id="startButton">카메라 시작</button>
+<div id="reader" style="display:none;"></div>
 
 <script src="https://unpkg.com/html5-qrcode@2.2.1/minified/html5-qrcode.min.js"></script>
 <script>
-  const html5QrCode = new Html5Qrcode("reader");
+  const startButton = document.getElementById('startButton');
+  const readerDiv = document.getElementById('reader');
+  let html5QrCode;
 
-  // 카메라 목록 얻기
-  Html5Qrcode.getCameras().then(cameras => {
-    if (cameras && cameras.length) {
-      // 후면 카메라 우선 찾기
-      const backCamera = cameras.find(cam => /back|rear|environment/gi.test(cam.label)) || cameras[0];
-      html5QrCode.start(
-        backCamera.id,
-        {
-          fps: 10,
-          qrbox: 250
-        },
-        decodedText => {
-          alert(`바코드 인식: ${decodedText}`);
-          // 스캔 후 카메라 정지 (필요하면 주석처리 가능)
-          html5QrCode.stop();
-        },
-        errorMessage => {
-          // 스캔 실패시 에러 무시
-        }
-      ).catch(err => {
-        alert(`카메라 시작 오류: ${err}`);
-      });
-    } else {
-      alert("사용 가능한 카메라가 없습니다.");
-    }
-  }).catch(err => {
-    alert(`카메라 정보 가져오기 실패: ${err}`);
+  startButton.addEventListener('click', () => {
+    startButton.style.display = 'none';
+    readerDiv.style.display = 'block';
+
+    html5QrCode = new Html5Qrcode("reader");
+
+    Html5Qrcode.getCameras().then(cameras => {
+      if (cameras && cameras.length) {
+        const backCamera = cameras.find(cam => /back|rear|environment/gi.test(cam.label)) || cameras[0];
+        html5QrCode.start(
+          backCamera.id,
+          {
+            fps: 10,
+            qrbox: 250
+          },
+          decodedText => {
+            alert(`바코드 인식: ${decodedText}`);
+            html5QrCode.stop();
+            readerDiv.style.display = 'none';
+            startButton.style.display = 'inline-block';
+          },
+          errorMessage => {
+            // 에러 무시
+          }
+        ).catch(err => {
+          alert(`카메라 시작 오류: ${err}`);
+          readerDiv.style.display = 'none';
+          startButton.style.display = 'inline-block';
+        });
+      } else {
+        alert("사용 가능한 카메라가 없습니다.");
+        readerDiv.style.display = 'none';
+        startButton.style.display = 'inline-block';
+      }
+    }).catch(err => {
+      alert(`카메라 정보 가져오기 실패: ${err}`);
+      readerDiv.style.display = 'none';
+      startButton.style.display = 'inline-block';
+    });
   });
 </script>
 </body>
