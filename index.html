@@ -71,6 +71,10 @@
             border: 1px solid #ddd;
             min-height: 250px;
         }
+        #switchCameraButton {
+            background-color: #3498db;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -92,6 +96,7 @@
     <button id="addButton">상품 추가</button>
     <button id="startScanButton">바코드 스캔 시작</button>
     <button id="stopScanButton" style="display:none; background-color:#e67e22;">스캔 중지</button>
+    <button id="switchCameraButton" style="display:none;">카메라 전환</button>
 
     <div id="reader"></div>
 
@@ -121,6 +126,7 @@
 
         const startScanButton = document.getElementById('startScanButton');
         const stopScanButton = document.getElementById('stopScanButton');
+        const switchCameraButton = document.getElementById('switchCameraButton');
         const readerDiv = document.getElementById('reader');
 
         function renderInventory() {
@@ -198,6 +204,8 @@
 
         // 바코드 스캔 관련
         let html5QrcodeScanner;
+        let cameras = [];
+        let currentCameraIndex = 0;
 
         startScanButton.addEventListener('click', async () => {
             const hasPermission = await requestCameraPermission();
@@ -205,59 +213,73 @@
 
             startScanButton.style.display = 'none';
             stopScanButton.style.display = 'inline-block';
+            switchCameraButton.style.display = 'inline-block';
 
             html5QrcodeScanner = new Html5Qrcode("reader");
 
-            Html5Qrcode.getCameras().then(cameras => {
-                if (cameras && cameras.length) {
-                    let cameraId = cameras[0].id;
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices && devices.length) {
+                    cameras = devices;
 
-                    // 후면 카메라 명확하게 선택
-                    const backCamera = cameras.find(cam => /back|rear|environment/gi.test(cam.label));
-                    if (backCamera) cameraId = backCamera.id;
+                    // 후면 카메라 우선 선택
+                    const backCameraIndex = cameras.findIndex(cam => /back|rear|environment/gi.test(cam.label));
+                    currentCameraIndex = backCameraIndex >= 0 ? backCameraIndex : 0;
 
-                    html5QrcodeScanner.start(
-                        cameraId,
-                        {
-                            fps: 10,
-                            qrbox: 250,
-                            formatsToSupport: [
-                                Html5QrcodeSupportedFormats.CODE_128,
-                                Html5QrcodeSupportedFormats.EAN_13,
-                                Html5QrcodeSupportedFormats.EAN_8,
-                                Html5QrcodeSupportedFormats.UPC_A,
-                                Html5QrcodeSupportedFormats.UPC_E,
-                                Html5QrcodeSupportedFormats.CODE_39,
-                                Html5QrcodeSupportedFormats.CODE_93
-                            ]
-                        },
-                        (decodedText, decodedResult) => {
-                            productBarcodeInput.value = decodedText;
-                            alert(`바코드 인식 성공: ${decodedText}`);
-
-                            if (!productNameInput.value.trim()) productNameInput.value = "스캔상품";
-                            if (!productQuantityInput.value.trim()) productQuantityInput.value = "1";
-
-                            addItem();
-                            stopScanning();
-                        },
-                        (errorMessage) => {
-                            // 에러 무시
-                        }
-                    ).catch(err => {
-                        alert(`카메라 시작 실패: ${err}`);
-                        startScanButton.style.display = 'inline-block';
-                        stopScanButton.style.display = 'none';
-                    });
+                    startCamera(cameras[currentCameraIndex].id);
                 } else {
                     alert('카메라를 찾을 수 없습니다.');
-                    startScanButton.style.display = 'inline-block';
-                    stopScanButton.style.display = 'none';
+                    resetButtons();
                 }
             }).catch(err => {
                 alert(`카메라 접근 오류: ${err}`);
-                startScanButton.style.display = 'inline-block';
-                stopScanButton.style.display = 'none';
+                resetButtons();
+            });
+        });
+
+        function startCamera(cameraId) {
+            html5QrcodeScanner.start(
+                cameraId,
+                {
+                    fps: 10,
+                    qrbox: 250,
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.UPC_A,
+                        Html5QrcodeSupportedFormats.UPC_E,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.CODE_93
+                    ]
+                },
+                (decodedText, decodedResult) => {
+                    productBarcodeInput.value = decodedText;
+                    alert(`바코드 인식 성공: ${decodedText}`);
+
+                    if (!productNameInput.value.trim()) productNameInput.value = "스캔상품";
+                    if (!productQuantityInput.value.trim()) productQuantityInput.value = "1";
+
+                    addItem();
+                    stopScanning();
+                },
+                (errorMessage) => {
+                    // 에러 무시
+                }
+            ).catch(err => {
+                alert(`카메라 시작 실패: ${err}`);
+                resetButtons();
+            });
+        }
+
+        switchCameraButton.addEventListener('click', () => {
+            if (cameras.length <= 1) return;
+
+            currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
+
+            html5QrcodeScanner.stop().then(() => {
+                startCamera(cameras[currentCameraIndex].id);
+            }).catch(err => {
+                alert(`카메라 전환 실패: ${err}`);
             });
         });
 
@@ -270,15 +292,19 @@
                 html5QrcodeScanner.stop().then(() => {
                     html5QrcodeScanner.clear();
                     html5QrcodeScanner = null;
-                    startScanButton.style.display = 'inline-block';
-                    stopScanButton.style.display = 'none';
+                    resetButtons();
                 }).catch(err => {
                     alert(`스캔 중지 실패: ${err}`);
                 });
             } else {
-                startScanButton.style.display = 'inline-block';
-                stopScanButton.style.display = 'none';
+                resetButtons();
             }
+        }
+
+        function resetButtons() {
+            startScanButton.style.display = 'inline-block';
+            stopScanButton.style.display = 'none';
+            switchCameraButton.style.display = 'none';
         }
     </script>
 
