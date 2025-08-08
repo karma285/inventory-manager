@@ -8,7 +8,7 @@
   body { font-family: Arial; max-width:600px; margin:auto; padding:20px; background:#f5f5f5; }
   h1 { text-align:center; color:#333; }
   input, button { width:100%; padding:10px; margin:5px 0; box-sizing:border-box; }
-  #video { width: 100%; max-height: 300px; border:1px solid #ccc; display:none; }
+  #cameraArea { width: 100%; border:1px solid #ccc; margin-top:10px; height: 0; overflow: hidden; }
   table { width:100%; border-collapse: collapse; margin-top:20px; background:#fff; }
   th, td { border:1px solid #ddd; padding:8px; text-align:center; }
   th { background:#4CAF50; color:#fff; }
@@ -25,9 +25,7 @@
   <button id="scannerButton">바코드 스캔 시작 (PC)</button>
 </div>
 
-<div id="cameraArea">
-  <video id="video" autoplay playsinline muted></video>
-</div>
+<div id="cameraArea"></div>
 
 <div>
   <label>상품명</label>
@@ -49,19 +47,21 @@
 <script>
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-const video = document.getElementById('video');
 const cameraButton = document.getElementById('cameraButton');
 const scannerButton = document.getElementById('scannerButton');
+const cameraArea = document.getElementById('cameraArea');
+
 const productNameInput = document.getElementById('productName');
 const productQuantityInput = document.getElementById('productQuantity');
 const productBarcodeInput = document.getElementById('productBarcode');
 const addButton = document.getElementById('addButton');
 const inventoryTable = document.getElementById('inventoryTable');
-const cameraArea = document.getElementById('cameraArea');
 
 let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
 
-// 재고 렌더링
+let html5QrcodeScanner = null;
+
+// 재고 렌더링 함수
 function renderInventory(){
   inventoryTable.innerHTML = '';
   if(inventory.length === 0){
@@ -88,7 +88,7 @@ function renderInventory(){
   });
 }
 
-// 재고 추가
+// 재고 추가 함수
 function addItem(name, quantity, barcode){
   if(!name || !quantity || !barcode){
     alert('모든 항목을 입력해주세요.');
@@ -112,8 +112,7 @@ addButton.onclick = () => {
   }
 }
 
-// 모바일용 카메라 켜기 & 바코드 스캔 (html5-qrcode)
-let html5QrcodeScanner = null;
+// 모바일용 카메라 켜기 & 바코드 스캔
 cameraButton.onclick = () => {
   if(!isMobile){
     alert('이 기능은 모바일에서만 지원됩니다.');
@@ -123,13 +122,16 @@ cameraButton.onclick = () => {
   if(!html5QrcodeScanner){
     html5QrcodeScanner = new Html5Qrcode("cameraArea");
   }
-  
+
   Html5Qrcode.getCameras().then(cameras=>{
     if(cameras && cameras.length){
       const backCam = cameras.find(cam=> /back|rear|environment/i.test(cam.label)) || cameras[0];
       cameraButton.style.display = 'none';
       scannerButton.style.display = 'none';
+
+      // 카메라Area 높이 지정 (중요!)
       cameraArea.style.height = '300px';
+
       html5QrcodeScanner.start(
         backCam.id,
         {fps:10, qrbox:250},
@@ -137,15 +139,21 @@ cameraButton.onclick = () => {
           productBarcodeInput.value = decodedText;
           if(!productNameInput.value.trim()) productNameInput.value = '스캔상품';
           if(!productQuantityInput.value.trim()) productQuantityInput.value = '1';
+
           addItem(productNameInput.value, productQuantityInput.value, productBarcodeInput.value);
-          html5QrcodeScanner.stop();
-          cameraButton.style.display = 'inline-block';
-          scannerButton.style.display = 'inline-block';
-          cameraArea.style.height = '0';
+
+          html5QrcodeScanner.stop().then(()=>{
+            cameraArea.style.height = '0';
+            cameraButton.style.display = 'inline-block';
+            scannerButton.style.display = 'inline-block';
+          });
         },
-        err => { /* 스캔 에러 무시 */ }
+        err => {
+          // 스캔 에러 무시
+        }
       ).catch(err=>{
         alert('카메라 실행 오류: ' + err);
+        cameraArea.style.height = '0';
         cameraButton.style.display = 'inline-block';
         scannerButton.style.display = 'inline-block';
       });
@@ -157,13 +165,13 @@ cameraButton.onclick = () => {
   });
 };
 
-// PC용 바코드 스캐너 입력 감지
+// PC용 바코드 스캐너 안내
 scannerButton.onclick = () => {
-  alert('PC에서는 바코드 스캐너를 바코드 번호 입력창에 커서를 두고 사용하세요.');
+  alert('PC에서는 바코드 스캐너를 바코드 번호 입력란에 포커스를 두고 사용하세요.');
   productBarcodeInput.focus();
 };
 
-// 바코드 번호 입력창에서 Enter 눌렀을 때 자동 추가
+// 엔터 눌렀을 때 자동 추가
 productBarcodeInput.addEventListener('keydown', e => {
   if(e.key === 'Enter'){
     if(!productNameInput.value.trim()) productNameInput.value = '스캔상품';
@@ -179,7 +187,7 @@ productBarcodeInput.addEventListener('keydown', e => {
 renderInventory();
 </script>
 
-<!-- html5-qrcode -->
+<!-- html5-qrcode 라이브러리 -->
 <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
 
 </body>
