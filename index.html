@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>재고관리 + 바코드 스캔</title>
+<title>재고관리 + 바코드 스캔 (jsQR 사용)</title>
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -65,25 +65,26 @@
     .delete-btn:hover {
         background-color: #c0392b;
     }
-    #reader {
+    #video {
         width: 100%;
+        max-width: 400px;
+        border: 1px solid #ccc;
         margin-top: 20px;
-        border: 1px solid #ddd;
-        min-height: 250px;
     }
-    #switchCameraButton {
-        background-color: #3498db;
-        margin-top: 5px;
+    #canvas {
+        display: none;
     }
-    #stopScanButton {
-        background-color: #e67e22;
-        margin-top: 5px;
+    #scanStatus {
+        margin-top: 10px;
+        font-weight: bold;
+        color: #555;
+        text-align: center;
     }
 </style>
 </head>
 <body>
 
-<h1>📦 재고관리 프로그램 + 바코드 스캔</h1>
+<h1>📦 재고관리 프로그램 + 바코드 스캔 (jsQR)</h1>
 
 <div class="input-group">
     <label for="productName">상품명</label>
@@ -99,10 +100,11 @@
 </div>
 <button id="addButton">상품 추가</button>
 <button id="startScanButton">바코드 스캔 시작</button>
-<button id="stopScanButton" style="display:none;">스캔 중지</button>
-<button id="switchCameraButton" style="display:none;">카메라 전환</button>
+<button id="stopScanButton" style="display:none; background-color:#e67e22;">스캔 중지</button>
 
-<div id="reader"></div>
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas"></canvas>
+<div id="scanStatus">스캔 대기 중...</div>
 
 <table>
     <thead>
@@ -116,8 +118,8 @@
     <tbody id="inventoryTable"></tbody>
 </table>
 
-<!-- html5-qrcode 라이브러리 -->
-<script src="https://unpkg.com/html5-qrcode@2.2.1/minified/html5-qrcode.min.js"></script>
+<!-- jsQR 라이브러리 -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
 <script>
 let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
@@ -130,8 +132,15 @@ const inventoryTable = document.getElementById('inventoryTable');
 
 const startScanButton = document.getElementById('startScanButton');
 const stopScanButton = document.getElementById('stopScanButton');
-const switchCameraButton = document.getElementById('switchCameraButton');
-const readerDiv = document.getElementById('reader');
+const scanStatus = document.getElementById('scanStatus');
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let scanning = false;
+let scanInterval;
+let videoStream = null;
 
 function renderInventory() {
     inventoryTable.innerHTML = '';
@@ -195,121 +204,75 @@ addButton.addEventListener('click', addItem);
 
 renderInventory();
 
-// 카메라 권한 요청 함수
-async function requestCameraPermission() {
+async function startCamera() {
     try {
-        await navigator.mediaDevices.getUserMedia({ video: true });
-        return true;
-    } catch(e) {
-        alert("카메라 권한이 필요합니다. 설정에서 권한을 허용해주세요.");
-        return false;
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = videoStream;
+        await video.play();
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        scanning = true;
+        scanStatus.textContent = "스캔 중...";
+
+        scanInterval = requestAnimationFrame(scanFrame);
+    } catch (e) {
+        alert("카메라 권한이 필요하거나 접근에 실패했습니다: " + e.message);
     }
 }
 
-// 바코드 스캔 관련
-let html5QrcodeScanner;
-let cameras = [];
-let currentCameraIndex = 0;
+function stopCamera() {
+    scanning = false;
+    scanStatus.textContent = "스캔 중지";
 
-startScanButton.addEventListener('click', async () => {
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) return;
+    if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+    }
+    cancelAnimationFrame(scanInterval);
+}
 
-    startScanButton.style.display = 'none';
-    stopScanButton.style.display = 'inline-block';
-    switchCameraButton.style.display = 'inline-block';
+function scanFrame() {
+    if (!scanning) return;
 
-    html5QrcodeScanner = new Html5Qrcode("reader");
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    Html5Qrcode.getCameras().then(devices => {
-        if (devices && devices.length) {
-            cameras = devices;
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
 
-            // 후면 카메라 우선 선택
-            const backCameraIndex = cameras.findIndex(cam => /back|rear|environment/gi.test(cam.label));
-            currentCameraIndex = backCameraIndex >= 0 ? backCameraIndex : 0;
-
-            startCamera(cameras[currentCameraIndex].id);
-        } else {
-            alert('카메라를 찾을 수 없습니다.');
-            resetButtons();
-        }
-    }).catch(err => {
-        alert(`카메라 접근 오류: ${err}`);
-        resetButtons();
-    });
-});
-
-function startCamera(cameraId) {
-    html5QrcodeScanner.start(
-        cameraId,
-        {
-            fps: 10,
-            qrbox: 250,
-            formatsToSupport: [
-                Html5QrcodeSupportedFormats.CODE_128,
-                Html5QrcodeSupportedFormats.EAN_13,
-                Html5QrcodeSupportedFormats.EAN_8,
-                Html5QrcodeSupportedFormats.UPC_A,
-                Html5QrcodeSupportedFormats.UPC_E,
-                Html5QrcodeSupportedFormats.CODE_39,
-                Html5QrcodeSupportedFormats.CODE_93
-            ]
-        },
-        (decodedText, decodedResult) => {
-            productBarcodeInput.value = decodedText;
-            alert(`바코드 인식 성공: ${decodedText}`);
+        if (code) {
+            productBarcodeInput.value = code.data;
+            scanStatus.textContent = `바코드 인식: ${code.data}`;
 
             if (!productNameInput.value.trim()) productNameInput.value = "스캔상품";
             if (!productQuantityInput.value.trim()) productQuantityInput.value = "1";
 
             addItem();
-            stopScanning();
-        },
-        (errorMessage) => {
-            // 에러 무시
+            stopScanButton.click(); // 자동 중지
+            return;
+        } else {
+            scanStatus.textContent = "스캔 중...";
         }
-    ).catch(err => {
-        alert(`카메라 시작 실패: ${err}`);
-        resetButtons();
-    });
+    }
+
+    scanInterval = requestAnimationFrame(scanFrame);
 }
 
-switchCameraButton.addEventListener('click', () => {
-    if (cameras.length <= 1) return;
-
-    currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
-
-    html5QrcodeScanner.stop().then(() => {
-        startCamera(cameras[currentCameraIndex].id);
-    }).catch(err => {
-        alert(`카메라 전환 실패: ${err}`);
-    });
+startScanButton.addEventListener('click', () => {
+    startScanButton.style.display = 'none';
+    stopScanButton.style.display = 'inline-block';
+    startCamera();
 });
 
 stopScanButton.addEventListener('click', () => {
-    stopScanning();
-});
-
-function stopScanning() {
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().then(() => {
-            html5QrcodeScanner.clear();
-            html5QrcodeScanner = null;
-            resetButtons();
-        }).catch(err => {
-            alert(`스캔 중지 실패: ${err}`);
-        });
-    } else {
-        resetButtons();
-    }
-}
-
-function resetButtons() {
-    startScanButton.style.display = 'inline-block';
     stopScanButton.style.display = 'none';
-    switchCameraButton.style.display = 'none';
-}
+    startScanButton.style.display = 'inline-block';
+    stopCamera();
+});
 </script>
 
 </body>
