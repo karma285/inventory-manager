@@ -216,6 +216,7 @@
 
         let isScanning = false;
         let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
+        let pcScannerBuffer = ''; // PC 스캐너 입력을 저장할 버퍼
 
         function renderInventory() {
             inventoryList.innerHTML = '';
@@ -414,9 +415,18 @@
 
         // PC 바코드 스캐너 입력 감지
         document.addEventListener('keydown', (e) => {
-            // Enter 키 입력 시 바코드로 인식
-            if (e.key === 'Enter' && barcodeInput.value.length > 0) {
-                displayScannedBarcode(barcodeInput.value);
+            // 입력된 키가 Enter가 아니면 버퍼에 추가
+            if (e.key !== 'Enter') {
+                if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { // 일반 문자 키만 처리
+                    pcScannerBuffer += e.key;
+                }
+            } else {
+                // Enter 키 입력 시 바코드로 인식
+                if (pcScannerBuffer.length > 0) {
+                    displayScannedBarcode(pcScannerBuffer);
+                    pcScannerBuffer = ''; // 버퍼 초기화
+                    e.preventDefault(); // Enter 키로 인한 기본 동작(폼 제출 등) 방지
+                }
             }
         });
 
