@@ -1,22 +1,250 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>사파리 카메라 테스트</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>바코드 재고 관리</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f9;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #interactive.viewport {
+            width: 100%;
+            height: 250px;
+            overflow: hidden;
+            border-radius: 8px;
+            background-color: #eee;
+            position: relative;
+        }
+        #interactive video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #startButton {
+            background-color: #2ecc71;
+        }
+        #stopButton {
+            background-color: #e74c3c;
+        }
+        #startButton:hover {
+            background-color: #27ae60;
+        }
+        #stopButton:hover {
+            background-color: #c0392b;
+        }
+        #resultContainer {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #ecf0f1;
+            border-radius: 8px;
+            border-left: 5px solid #3498db;
+        }
+        #barcodeInput {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .inventory-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .inventory-item span {
+            font-weight: bold;
+        }
+        .inventory-item .quantity {
+            color: #2980b9;
+        }
+        .delete-button {
+            background-color: #e74c3c;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
-  <h2>사파리 카메라 테스트</h2>
-  <video id="video" autoplay playsinline muted style="width:100%; max-width:400px; border:1px solid #ccc;"></video>
-  <script>
-    const video = document.getElementById('video');
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-      .then(stream => {
-        video.srcObject = stream;
-      })
-      .catch(err => {
-        alert('카메라 접근 실패: ' + err.message);
-      });
-  </script>
+    <div class="container">
+        <h1>바코드 재고 관리</h1>
+        <div id="interactive" class="viewport"></div>
+        <div class="controls">
+            <button id="startButton">스캔 시작</button>
+            <button id="stopButton" style="display:none;">스캔 중지</button>
+        </div>
+        <div id="resultContainer" style="display:none;">
+            <p><strong>스캔 결과:</strong> <span id="barcodeResult"></span></p>
+            <input type="text" id="barcodeInput" placeholder="바코드 번호를 수동으로 입력하세요">
+            <button id="addItemButton" style="background-color: #3498db; width: 100%; margin-top: 10px;">재고 추가</button>
+        </div>
+        <hr style="margin-top: 30px; border: 0; height: 1px; background-color: #eee;">
+        <h2>현재 재고 목록</h2>
+        <div id="inventoryList">
+            </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    <script>
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const barcodeResult = document.getElementById('barcodeResult');
+        const resultContainer = document.getElementById('resultContainer');
+        const barcodeInput = document.getElementById('barcodeInput');
+        const addItemButton = document.getElementById('addItemButton');
+        const inventoryList = document.getElementById('inventoryList');
+
+        let isScanning = false;
+        let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
+
+        function renderInventory() {
+            inventoryList.innerHTML = '';
+            for (const barcode in inventory) {
+                const item = inventory[barcode];
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'inventory-item';
+                itemDiv.innerHTML = `
+                    <span>${barcode}</span>
+                    <span class="quantity">수량: ${item.quantity}</span>
+                    <button class="delete-button" data-barcode="${barcode}">삭제</button>
+                `;
+                inventoryList.appendChild(itemDiv);
+            }
+            if (Object.keys(inventory).length === 0) {
+                inventoryList.innerHTML = '<p style="text-align: center; color: #777;">재고가 없습니다.</p>';
+            }
+
+            document.querySelectorAll('.delete-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const barcodeToDelete = event.target.dataset.barcode;
+                    delete inventory[barcodeToDelete];
+                    localStorage.setItem('inventory', JSON.stringify(inventory));
+                    renderInventory();
+                });
+            });
+        }
+
+        function startScanner() {
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#interactive'),
+                    constraints: {
+                        facingMode: "environment" // 후면 카메라 사용
+                    },
+                },
+                decoder: {
+                    readers: [
+                        "ean_reader",
+                        "code_128_reader",
+                        "code_39_reader",
+                        "upc_reader"
+                    ]
+                }
+            }, function(err) {
+                if (err) {
+                    alert('카메라 접근 실패: ' + err.message);
+                    return;
+                }
+                Quagga.start();
+                isScanning = true;
+                startButton.style.display = 'none';
+                stopButton.style.display = 'inline-block';
+                resultContainer.style.display = 'none';
+            });
+
+            Quagga.onDetected(function(data) {
+                if (data && data.codeResult) {
+                    const barcode = data.codeResult.code;
+                    barcodeResult.textContent = barcode;
+                    barcodeInput.value = barcode;
+                    resultContainer.style.display = 'block';
+                    Quagga.stop();
+                    isScanning = false;
+                    startButton.style.display = 'inline-block';
+                    stopButton.style.display = 'none';
+                }
+            });
+        }
+
+        function stopScanner() {
+            if (isScanning) {
+                Quagga.stop();
+                isScanning = false;
+                startButton.style.display = 'inline-block';
+                stopButton.style.display = 'none';
+                resultContainer.style.display = 'none';
+            }
+        }
+
+        startButton.addEventListener('click', startScanner);
+        stopButton.addEventListener('click', stopScanner);
+
+        addItemButton.addEventListener('click', () => {
+            const barcode = barcodeInput.value.trim();
+            if (barcode) {
+                if (inventory[barcode]) {
+                    inventory[barcode].quantity++;
+                } else {
+                    inventory[barcode] = {
+                        quantity: 1
+                    };
+                }
+                localStorage.setItem('inventory', JSON.stringify(inventory));
+                barcodeInput.value = '';
+                barcodeResult.textContent = '';
+                resultContainer.style.display = 'none';
+                renderInventory();
+            } else {
+                alert('바코드를 입력해주세요.');
+            }
+        });
+
+        // 초기 재고 목록 렌더링
+        renderInventory();
+    </script>
 </body>
 </html>
