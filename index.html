@@ -1,125 +1,23 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>바코드 스캔 재고관리</title>
-<style>
-  body { font-family: Arial, sans-serif; max-width:600px; margin:auto; padding:20px; background:#f5f5f5; }
-  h1 { text-align:center; color:#333; }
-  button { width:100%; padding:10px; margin:10px 0; cursor:pointer; background:#4CAF50; color:#fff; border:none; }
-  #cameraArea { width:100%; height:0; overflow:hidden; margin-bottom:10px; border:1px solid #ccc; }
-  table { width:100%; border-collapse: collapse; background:#fff; }
-  th, td { border:1px solid #ddd; padding:8px; text-align:center; }
-  th { background:#4CAF50; color:#fff; }
-  .delete-btn { background:#e74c3c; color:#fff; border:none; padding:5px 10px; cursor:pointer; }
-  .delete-btn:hover { background:#c0392b; }
-</style>
-</head>
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>기본 카메라 테스트</title></head>
 <body>
+<button id="startCam">카메라 켜기</button>
+<video id="video" autoplay playsinline style="width:100%;max-width:400px;border:1px solid #ccc;"></video>
 
-<h1>📦 바코드 스캔 + 재고관리</h1>
-
-<button id="startCameraBtn">카메라 켜기 (모바일)</button>
-
-<div id="cameraArea"></div>
-
-<table>
-  <thead>
-    <tr><th>상품명</th><th>수량</th><th>바코드</th><th>삭제</th></tr>
-  </thead>
-  <tbody id="inventoryTable"></tbody>
-</table>
-
-<script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
 <script>
-  const startCameraBtn = document.getElementById('startCameraBtn');
-  const cameraArea = document.getElementById('cameraArea');
-  const inventoryTable = document.getElementById('inventoryTable');
+  const startCamBtn = document.getElementById('startCam');
+  const video = document.getElementById('video');
 
-  let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
-  let html5QrcodeScanner = null;
-
-  function renderInventory() {
-    inventoryTable.innerHTML = '';
-    if(inventory.length === 0){
-      inventoryTable.innerHTML = '<tr><td colspan="4">등록된 상품이 없습니다.</td></tr>';
-      return;
-    }
-    inventory.forEach((item, idx) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${item.name}</td>
-        <td>${item.quantity}</td>
-        <td>${item.barcode}</td>
-        <td><button class="delete-btn" data-idx="${idx}">삭제</button></td>
-      `;
-      inventoryTable.appendChild(tr);
-    });
-
-    // 삭제버튼 이벤트
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-      btn.onclick = e => {
-        const idx = e.target.getAttribute('data-idx');
-        inventory.splice(idx, 1);
-        localStorage.setItem('inventory', JSON.stringify(inventory));
-        renderInventory();
-      }
-    });
-  }
-
-  function addOrUpdateItem(barcode) {
-    // 바코드가 이미 있으면 수량 1 증가, 없으면 새 항목 추가
-    const idx = inventory.findIndex(item => item.barcode === barcode);
-    if(idx >= 0) {
-      inventory[idx].quantity++;
-    } else {
-      inventory.push({ name: "스캔상품", quantity: 1, barcode });
-    }
-    localStorage.setItem('inventory', JSON.stringify(inventory));
-    renderInventory();
-  }
-
-  startCameraBtn.onclick = async () => {
-    startCameraBtn.disabled = true;
-    cameraArea.style.height = '300px';
-
-    if(html5QrcodeScanner){
-      await html5QrcodeScanner.stop();
-      html5QrcodeScanner.clear();
-    }
-    html5QrcodeScanner = new Html5Qrcode("cameraArea");
-
+  startCamBtn.onclick = async () => {
     try {
-      const devices = await Html5Qrcode.getCameras();
-      if(!devices || devices.length === 0) {
-        alert("카메라를 찾을 수 없습니다.");
-        startCameraBtn.disabled = false;
-        cameraArea.style.height = '0';
-        return;
-      }
-      const backCam = devices.find(cam => /back|rear|environment/i.test(cam.label)) || devices[0];
-
-      await html5QrcodeScanner.start(
-        backCam.id,
-        { fps: 10, qrbox: 250 },
-        (decodedText) => {
-          addOrUpdateItem(decodedText);
-        },
-        (error) => {
-          // 에러 무시
-        }
-      );
-    } catch(err) {
-      alert("카메라 실행 오류: " + err);
-      startCameraBtn.disabled = false;
-      cameraArea.style.height = '0';
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      video.srcObject = stream;
+      alert("카메라 실행 성공");
+    } catch(e) {
+      alert("카메라 실행 실패: " + e.message);
     }
-  };
-
-  // 초기 재고 렌더링
-  renderInventory();
+  }
 </script>
-
 </body>
 </html>
