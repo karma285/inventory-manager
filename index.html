@@ -4,65 +4,79 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>바코드 스캔 테스트</title>
-  <style>
-    #reader {
-      width: 100%;
-      max-width: 400px;
-      margin: auto;
-      border: 1px solid #ccc;
-    }
-  </style>
 </head>
 <body>
 
 <h1>바코드 스캔 테스트</h1>
-<div id="reader"></div>
+
+<div id="cameraArea" style="width:300px; height:300px; border:1px solid #ccc;"></div>
+<input type="text" id="barcodeResult" placeholder="스캔 결과" style="width:300px; margin-top:10px;" />
+
+<button id="startScanBtn">스캔 시작</button>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+
 <script>
-  // 라이브러리 로딩 확인
-  console.log("Html5Qrcode:", Html5Qrcode);
+  // html5-qrcode 라이브러리 로딩 후 실행되도록 함
+  window.onload = () => {
+    const startScanBtn = document.getElementById('startScanBtn');
+    const cameraArea = document.getElementById('cameraArea');
+    const barcodeResult = document.getElementById('barcodeResult');
 
-  function onScanSuccess(decodedText, decodedResult) {
-    alert("스캔 성공: " + decodedText);
-    // 스캔 성공하면 카메라 중지
-    html5QrCode.stop().then(() => {
-      console.log("카메라 중지 완료");
-    }).catch(err => {
-      console.error("카메라 중지 오류", err);
+    let html5QrCode = null;
+
+    startScanBtn.addEventListener('click', async () => {
+      if (html5QrCode) {
+        await html5QrCode.stop();
+        html5QrCode.clear();
+        html5QrCode = null;
+        startScanBtn.textContent = "스캔 시작";
+        barcodeResult.value = '';
+        return;
+      }
+
+      try {
+        // Html5Qrcode 클래스 인스턴스 생성 (카메라가 보여질 div ID 넣기)
+        html5QrCode = new Html5Qrcode("cameraArea");
+
+        // 카메라 리스트 받아오기
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras || cameras.length === 0) {
+          alert("카메라를 찾을 수 없습니다.");
+          return;
+        }
+
+        // 후면 카메라 선택
+        const cameraId = cameras.find(cam => /back|rear|environment/i.test(cam.label))?.id || cameras[0].id;
+
+        startScanBtn.textContent = "스캔 중지";
+
+        // 스캔 시작
+        await html5QrCode.start(
+          cameraId,
+          { fps: 10, qrbox: 250 },
+          (decodedText) => {
+            // 바코드 혹은 QR코드 인식 시 콜백
+            barcodeResult.value = decodedText;
+            // 필요하면 스캔 자동 중지
+            // html5QrCode.stop();
+          },
+          (errorMessage) => {
+            // 스캔 실패 시 콜백 (에러 무시 가능)
+            // console.log('스캔 에러:', errorMessage);
+          }
+        );
+      } catch (err) {
+        alert("카메라 스캔 오류: " + err);
+        if (html5QrCode) {
+          await html5QrCode.stop();
+          html5QrCode.clear();
+          html5QrCode = null;
+        }
+        startScanBtn.textContent = "스캔 시작";
+      }
     });
-  }
-
-  function onScanFailure(error) {
-    // 실패해도 콘솔에 찍음 (스캔 중 계속 발생 가능)
-    console.warn(`스캔 실패: ${error}`);
-  }
-
-  const html5QrCode = new Html5Qrcode("reader");
-
-  Html5Qrcode.getCameras().then(cameras => {
-    if (cameras && cameras.length) {
-      // 후면 카메라 우선 선택 (모바일에서 주로 사용)
-      let cameraId = cameras.find(cam => /back|rear|environment/i.test(cam.label))?.id || cameras[0].id;
-
-      html5QrCode.start(
-        cameraId,
-        {
-          fps: 10,    // 초당 프레임 수
-          qrbox: 250  // 스캔 영역 크기
-        },
-        onScanSuccess,
-        onScanFailure
-      ).catch(err => {
-        console.error("카메라 시작 실패:", err);
-      });
-
-    } else {
-      alert("카메라를 찾을 수 없습니다.");
-    }
-  }).catch(err => {
-    alert("카메라 접근 실패: " + err);
-  });
+  };
 </script>
 
 </body>
