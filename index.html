@@ -60,11 +60,17 @@
         #stopButton {
             background-color: #e74c3c;
         }
+        #endScanButton {
+            background-color: #3498db;
+        }
         #startButton:hover {
             background-color: #27ae60;
         }
         #stopButton:hover {
             background-color: #c0392b;
+        }
+        #endScanButton:hover {
+            background-color: #2980b9;
         }
         #resultContainer {
             margin-top: 20px;
@@ -72,6 +78,7 @@
             background-color: #ecf0f1;
             border-radius: 8px;
             border-left: 5px solid #3498db;
+            display: block; /* 항상 보이도록 수정 */
         }
         #barcodeInput {
             width: calc(100% - 20px);
@@ -114,8 +121,9 @@
         <div class="controls">
             <button id="startButton">스캔 시작</button>
             <button id="stopButton" style="display:none;">스캔 중지</button>
+            <button id="endScanButton" style="display:none;">스캔 종료</button>
         </div>
-        <div id="resultContainer" style="display:none;">
+        <div id="resultContainer">
             <p><strong>스캔 결과:</strong> <span id="barcodeResult"></span></p>
             <input type="text" id="barcodeInput" placeholder="바코드 번호를 수동으로 입력하세요">
             <button id="addItemButton" style="background-color: #3498db; width: 100%; margin-top: 10px;">재고 추가</button>
@@ -123,13 +131,14 @@
         <hr style="margin-top: 30px; border: 0; height: 1px; background-color: #eee;">
         <h2>현재 재고 목록</h2>
         <div id="inventoryList">
-            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <script>
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
+        const endScanButton = document.getElementById('endScanButton');
         const barcodeResult = document.getElementById('barcodeResult');
         const resultContainer = document.getElementById('resultContainer');
         const barcodeInput = document.getElementById('barcodeInput');
@@ -193,7 +202,7 @@
                 isScanning = true;
                 startButton.style.display = 'none';
                 stopButton.style.display = 'inline-block';
-                resultContainer.style.display = 'none';
+                endScanButton.style.display = 'inline-block';
             });
 
             Quagga.onDetected(function(data) {
@@ -201,11 +210,7 @@
                     const barcode = data.codeResult.code;
                     barcodeResult.textContent = barcode;
                     barcodeInput.value = barcode;
-                    resultContainer.style.display = 'block';
-                    Quagga.stop();
-                    isScanning = false;
-                    startButton.style.display = 'inline-block';
-                    stopButton.style.display = 'none';
+                    // 스캔 성공 시 추가적인 액션 (예: 진동, 소리 등) 가능
                 }
             });
         }
@@ -216,12 +221,21 @@
                 isScanning = false;
                 startButton.style.display = 'inline-block';
                 stopButton.style.display = 'none';
-                resultContainer.style.display = 'none';
+                endScanButton.style.display = 'none';
             }
         }
 
         startButton.addEventListener('click', startScanner);
-        stopButton.addEventListener('click', stopScanner);
+        stopButton.addEventListener('click', () => {
+            // stopButton은 pause/resume 용도로 활용 가능 (현재는 stop과 동일)
+            Quagga.stop();
+            isScanning = false;
+            startButton.style.display = 'inline-block';
+            stopButton.style.display = 'none';
+            endScanButton.style.display = 'none';
+        });
+
+        endScanButton.addEventListener('click', stopScanner);
 
         addItemButton.addEventListener('click', () => {
             const barcode = barcodeInput.value.trim();
@@ -236,7 +250,6 @@
                 localStorage.setItem('inventory', JSON.stringify(inventory));
                 barcodeInput.value = '';
                 barcodeResult.textContent = '';
-                resultContainer.style.display = 'none';
                 renderInventory();
             } else {
                 alert('바코드를 입력해주세요.');
