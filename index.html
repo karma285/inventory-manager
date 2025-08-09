@@ -62,10 +62,8 @@
             margin-top: 10px;
         }
         #startButton { background-color: #2ecc71; }
-        #stopButton { background-color: #e74c3c; }
         #endScanButton { background-color: #3498db; }
         #startButton:hover { background-color: #27ae60; }
-        #stopButton:hover { background-color: #c0392b; }
         #endScanButton:hover { background-color: #2980b9; }
 
         #resultContainer {
@@ -301,10 +299,7 @@
                 if (data && data.codeResult) {
                     const barcode = data.codeResult.code;
                     displayScannedBarcode(barcode);
-                    Quagga.stop();
-                    isScanning = false;
-                    startButton.style.display = 'inline-block';
-                    endScanButton.style.display = 'none';
+                    // 연속 스캔을 위해 카메라를 멈추지 않음
                 }
             });
         }
