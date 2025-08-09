@@ -272,6 +272,8 @@
         }
 
         function startScanner() {
+            if(isScanning) return; // 이미 스캔 중이면 다시 시작하지 않음
+
             Quagga.init({
                 inputStream: {
                     name: "Live",
@@ -305,19 +307,17 @@
 
         function stopScanner() {
             if (isScanning) {
-                // Quagga 라이브러리 중단
                 Quagga.stop();
-
+                isScanning = false;
+                startButton.style.display = 'inline-block';
+                endScanButton.style.display = 'none';
+                
                 // 카메라 스트림을 직접 중지 (호환성 문제 해결)
                 const video = document.querySelector('#interactive video');
                 if (video && video.srcObject) {
                     video.srcObject.getTracks().forEach(track => track.stop());
                     video.srcObject = null;
                 }
-
-                isScanning = false;
-                startButton.style.display = 'inline-block';
-                endScanButton.style.display = 'none';
             }
         }
 
