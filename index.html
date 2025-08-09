@@ -62,8 +62,10 @@
             margin-top: 10px;
         }
         #startButton { background-color: #2ecc71; }
+        #continuousScanButton { background-color: #f39c12; }
         #endScanButton { background-color: #3498db; }
         #startButton:hover { background-color: #27ae60; }
+        #continuousScanButton:hover { background-color: #e67e22; }
         #endScanButton:hover { background-color: #2980b9; }
 
         #resultContainer {
@@ -165,6 +167,7 @@
         <div id="interactive" class="viewport"></div>
         <div class="controls">
             <button id="startButton">스캔 시작</button>
+            <button id="continuousScanButton" style="display:none;">연속 스캔 시작</button>
             <button id="endScanButton" style="display:none;">스캔 종료</button>
         </div>
 
@@ -202,6 +205,7 @@
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <script>
         const startButton = document.getElementById('startButton');
+        const continuousScanButton = document.getElementById('continuousScanButton');
         const endScanButton = document.getElementById('endScanButton');
         const barcodeInput = document.getElementById('barcodeInput');
         const productNameInput = document.getElementById('productNameInput');
@@ -213,6 +217,10 @@
         const exportButton = document.getElementById('exportButton');
 
         let isScanning = false;
+        let isContinuousScanning = false;
+        let lastScanTime = 0;
+        const cooldownPeriod = 2000; // 2초 쿨타임
+
         let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
         let pcScannerBuffer = '';
 
@@ -294,22 +302,42 @@
                 Quagga.start();
                 isScanning = true;
                 startButton.style.display = 'none';
+                continuousScanButton.style.display = 'none'; // 연속 스캔 시작 버튼도 숨김
                 endScanButton.style.display = 'inline-block';
             });
 
             Quagga.onDetected(function(data) {
                 if (data && data.codeResult) {
                     const barcode = data.codeResult.code;
-                    displayScannedBarcode(barcode);
+                    const currentTime = new Date().getTime();
+
+                    if (isContinuousScanning && (currentTime - lastScanTime) > cooldownPeriod) {
+                        displayScannedBarcode(barcode);
+                        handleInventoryChange(1); // 연속 스캔 시 자동으로 입고 처리
+                        lastScanTime = currentTime;
+                    } else if (!isContinuousScanning) {
+                        stopScanner();
+                        displayScannedBarcode(barcode);
+                    }
                 }
             });
+        }
+        
+        function startContinuousScanner() {
+            isContinuousScanning = true;
+            startScanner();
+            startButton.style.display = 'none';
+            continuousScanButton.style.display = 'none';
+            endScanButton.style.display = 'inline-block';
         }
 
         function stopScanner() {
             if (isScanning) {
                 Quagga.stop();
                 isScanning = false;
+                isContinuousScanning = false; // 연속 스캔 모드도 종료
                 startButton.style.display = 'inline-block';
+                continuousScanButton.style.display = 'inline-block';
                 endScanButton.style.display = 'none';
                 
                 const video = document.querySelector('#interactive video');
@@ -426,15 +454,14 @@
         }
 
         startButton.addEventListener('click', startScanner);
+        continuousScanButton.addEventListener('click', startContinuousScanner);
         endScanButton.addEventListener('click', stopScanner);
         addInButton.addEventListener('click', () => handleInventoryChange(1));
         takeOutButton.addEventListener('click', () => handleInventoryChange(-1));
         exportButton.addEventListener('click', exportToCsv);
         importFile.addEventListener('change', importFromCsv);
 
-        // 수정된 keydown 이벤트 리스너
         document.addEventListener('keydown', (e) => {
-            // 현재 포커스된 요소가 input, textarea 등 편집 가능한 요소인 경우, PC 스캐너 버퍼링을 중단합니다.
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
                 return;
             }
@@ -447,7 +474,7 @@
                 if (pcScannerBuffer.length > 0) {
                     displayScannedBarcode(pcScannerBuffer);
                     pcScannerBuffer = '';
-                    e.preventDefault(); // Enter 키의 기본 동작 (폼 제출 등)을 막습니다.
+                    e.preventDefault();
                 }
             }
         });
