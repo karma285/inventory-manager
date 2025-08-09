@@ -299,14 +299,22 @@
                 if (data && data.codeResult) {
                     const barcode = data.codeResult.code;
                     displayScannedBarcode(barcode);
-                    // 연속 스캔을 위해 카메라를 멈추지 않음
                 }
             });
         }
 
         function stopScanner() {
             if (isScanning) {
+                // Quagga 라이브러리 중단
                 Quagga.stop();
+
+                // 카메라 스트림을 직접 중지 (호환성 문제 해결)
+                const video = document.querySelector('#interactive video');
+                if (video && video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                    video.srcObject = null;
+                }
+
                 isScanning = false;
                 startButton.style.display = 'inline-block';
                 endScanButton.style.display = 'none';
@@ -321,7 +329,7 @@
                 imageUrlInput.value = inventory[barcode].imageUrl;
                 productNameInput.placeholder = '상품명을 입력하세요';
             } else {
-                productNameInput.value = ''; // 신규 상품이므로 상품명 입력란을 비워둠
+                productNameInput.value = '';
                 imageUrlInput.value = '';
                 productNameInput.placeholder = '새로운 상품입니다. 상품명을 입력해주세요.';
             }
