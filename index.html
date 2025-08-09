@@ -324,9 +324,9 @@
             if (inventory[barcode]) {
                 productNameInput.value = inventory[barcode].productName;
                 imageUrlInput.value = inventory[barcode].imageUrl;
-                productNameInput.placeholder = '상품명을 입력하세요'; // 기존 상품은 placeholder 초기화
+                productNameInput.placeholder = '상품명을 입력하세요';
             } else {
-                productNameInput.value = '';
+                productNameInput.value = ''; // 신규 상품이므로 상품명 입력란을 비워둠
                 imageUrlInput.value = '';
                 productNameInput.placeholder = '새로운 상품입니다. 상품명을 입력해주세요.';
             }
