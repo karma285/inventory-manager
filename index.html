@@ -62,10 +62,10 @@
             margin-top: 10px;
         }
         #startButton { background-color: #2ecc71; }
-        #continuousScanButton { background-color: #f39c12; }
+        #stopButton { background-color: #e74c3c; }
         #endScanButton { background-color: #3498db; }
         #startButton:hover { background-color: #27ae60; }
-        #continuousScanButton:hover { background-color: #e67e22; }
+        #stopButton:hover { background-color: #c0392b; }
         #endScanButton:hover { background-color: #2980b9; }
 
         #resultContainer {
@@ -167,7 +167,6 @@
         <div id="interactive" class="viewport"></div>
         <div class="controls">
             <button id="startButton">스캔 시작</button>
-            <button id="continuousScanButton" style="display:none;">연속 스캔 시작</button>
             <button id="endScanButton" style="display:none;">스캔 종료</button>
         </div>
 
@@ -205,7 +204,6 @@
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <script>
         const startButton = document.getElementById('startButton');
-        const continuousScanButton = document.getElementById('continuousScanButton');
         const endScanButton = document.getElementById('endScanButton');
         const barcodeInput = document.getElementById('barcodeInput');
         const productNameInput = document.getElementById('productNameInput');
@@ -217,12 +215,7 @@
         const exportButton = document.getElementById('exportButton');
 
         let isScanning = false;
-        let isContinuousScanning = false;
-        let lastScanTime = 0;
-        const cooldownPeriod = 2000; // 2초 쿨타임
-
         let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
-        let pcScannerBuffer = '';
 
         function renderInventory() {
             inventoryList.innerHTML = '';
@@ -280,8 +273,6 @@
         }
 
         function startScanner() {
-            if(isScanning) return;
-
             Quagga.init({
                 inputStream: {
                     name: "Live",
@@ -302,106 +293,57 @@
                 Quagga.start();
                 isScanning = true;
                 startButton.style.display = 'none';
-                continuousScanButton.style.display = 'none'; // 연속 스캔 시작 버튼도 숨김
                 endScanButton.style.display = 'inline-block';
             });
 
             Quagga.onDetected(function(data) {
                 if (data && data.codeResult) {
                     const barcode = data.codeResult.code;
-                    const currentTime = new Date().getTime();
 
-                    if (isContinuousScanning && (currentTime - lastScanTime) > cooldownPeriod) {
-                        displayScannedBarcode(barcode);
-                        handleInventoryChange(1); // 연속 스캔 시 자동으로 입고 처리
-                        lastScanTime = currentTime;
-                    } else if (!isContinuousScanning) {
-                        stopScanner();
-                        displayScannedBarcode(barcode);
-                    }
+                    // 스캔된 바코드로 즉시 재고 1 증가
+                    handleInventoryChange(1, barcode);
+
+                    // 입력 필드를 비워 다음 스캔을 준비
+                    barcodeInput.value = '';
+                    productNameInput.value = '';
+                    imageUrlInput.value = '';
                 }
             });
-        }
-        
-        function startContinuousScanner() {
-            isContinuousScanning = true;
-            startScanner();
-            startButton.style.display = 'none';
-            continuousScanButton.style.display = 'none';
-            endScanButton.style.display = 'inline-block';
         }
 
         function stopScanner() {
             if (isScanning) {
                 Quagga.stop();
                 isScanning = false;
-                isContinuousScanning = false; // 연속 스캔 모드도 종료
                 startButton.style.display = 'inline-block';
-                continuousScanButton.style.display = 'inline-block';
                 endScanButton.style.display = 'none';
-                
-                const video = document.querySelector('#interactive video');
-                if (video && video.srcObject) {
-                    video.srcObject.getTracks().forEach(track => track.stop());
-                    video.srcObject = null;
-                }
             }
         }
 
-        function displayScannedBarcode(barcode) {
-            barcodeInput.value = barcode;
-            
-            if (inventory[barcode]) {
-                productNameInput.value = inventory[barcode].productName;
-                imageUrlInput.value = inventory[barcode].imageUrl;
-                productNameInput.placeholder = '상품명을 입력하세요';
-            } else {
-                productNameInput.value = '';
-                imageUrlInput.value = '';
-                productNameInput.placeholder = '새로운 상품입니다. 상품명을 입력해주세요.';
-            }
-        }
-
-        function handleInventoryChange(change) {
-            const barcode = barcodeInput.value.trim();
+        function handleInventoryChange(change, scannedBarcode = null) {
+            const barcode = scannedBarcode || barcodeInput.value.trim();
             if (!barcode) {
                 alert('바코드를 입력해주세요.');
                 return;
             }
+            
+            const productName = productNameInput.value.trim() || '상품명 없음';
+            const imageUrl = imageUrlInput.value.trim();
 
-            if (inventory[barcode] === undefined) {
-                const productName = productNameInput.value.trim();
-                const imageUrl = imageUrlInput.value.trim();
-
-                if (!productName) {
-                    alert('새로운 상품은 상품명을 입력해야 등록할 수 있습니다.');
-                    return;
-                }
-                if (change > 0) {
-                    inventory[barcode] = {
-                        productName,
-                        imageUrl,
-                        quantity: change
-                    };
-                    alert(`${productName} 상품이 새로 등록 및 입고되었습니다. (수량: ${inventory[barcode].quantity})`);
-                } else {
-                    alert('새로운 상품은 입고만 가능합니다.');
-                    return;
-                }
-            } else {
+            if (inventory[barcode]) {
                 inventory[barcode].quantity += change;
                 if (inventory[barcode].quantity < 0) {
                     inventory[barcode].quantity = 0;
                 }
-                const productName = inventory[barcode].productName;
-                alert(`${productName} 상품이 ${change > 0 ? '입고' : '출고'}되었습니다. (현재 수량: ${inventory[barcode].quantity})`);
+            } else if (change > 0) {
+                inventory[barcode] = {
+                    productName,
+                    imageUrl,
+                    quantity: change
+                };
             }
             
             localStorage.setItem('inventory', JSON.stringify(inventory));
-            barcodeInput.value = '';
-            productNameInput.value = '';
-            imageUrlInput.value = '';
-            productNameInput.placeholder = '상품명을 입력하세요';
             renderInventory();
         }
 
@@ -454,31 +396,13 @@
         }
 
         startButton.addEventListener('click', startScanner);
-        continuousScanButton.addEventListener('click', startContinuousScanner);
         endScanButton.addEventListener('click', stopScanner);
         addInButton.addEventListener('click', () => handleInventoryChange(1));
         takeOutButton.addEventListener('click', () => handleInventoryChange(-1));
         exportButton.addEventListener('click', exportToCsv);
         importFile.addEventListener('change', importFromCsv);
 
-        document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
-                return;
-            }
-
-            if (e.key !== 'Enter') {
-                if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-                    pcScannerBuffer += e.key;
-                }
-            } else {
-                if (pcScannerBuffer.length > 0) {
-                    displayScannedBarcode(pcScannerBuffer);
-                    pcScannerBuffer = '';
-                    e.preventDefault();
-                }
-            }
-        });
-
+        // 초기 재고 목록 렌더링
         renderInventory();
     </script>
 </body>
