@@ -202,6 +202,24 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script>
+    // 여기에 복사한 Firebase config 코드를 붙여넣으세요.
+    const firebaseConfig = {
+      apiKey: "AIzaSyAYa14UidbdHqdBfziPIvvZLGUq-ryhxO0",
+  authDomain: "inventory-management-8c308.firebaseapp.com",
+  databaseURL: "https://inventory-management-8c308-default-rtdb.firebaseio.com",
+  projectId: "inventory-management-8c308",
+  storageBucket: "inventory-management-8c308.firebasestorage.app",
+  messagingSenderId: "284689826369",
+  appId: "1:284689826369:web:0d74e008a99bd00289fcc0"
+    };
+    // Firebase 초기화 코드
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const inventoryRef = database.ref('inventory');
+</script>
     <script>
         const startButton = document.getElementById('startButton');
         const endScanButton = document.getElementById('endScanButton');
@@ -215,7 +233,11 @@
         const exportButton = document.getElementById('exportButton');
 
         let isScanning = false;
-        let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
+        let inventory = {};
+        inventoryRef.on('value', (snapshot) => {
+        inventory = snapshot.val() || {};
+        renderInventory();
+        });
         let lastScanTime = 0;
         const scanInterval = 1000; // 1초 (1000ms) 동안 재스캔 방지
 
@@ -259,7 +281,7 @@
                         const newQuantity = parseInt(input.value);
                         if (!isNaN(newQuantity)) {
                             inventory[barcode].quantity = newQuantity;
-                            localStorage.setItem('inventory', JSON.stringify(inventory));
+                            
                             renderInventory();
                         } else {
                             renderInventory();
@@ -273,13 +295,12 @@
             }
 
             document.querySelectorAll('.delete-button').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const barcodeToDelete = event.target.dataset.barcode;
-                    delete inventory[barcodeToDelete];
-                    localStorage.setItem('inventory', JSON.stringify(inventory));
-                    renderInventory();
-                });
+            button.addEventListener('click', (event) => {
+                const barcodeToDelete = event.target.dataset.barcode;
+                inventoryRef.child(barcodeToDelete).remove(); // 이 줄로 변경하세요.
+                // renderInventory()는 firebase 리스너가 알아서 호출해 줍니다.
             });
+        });
         }
 
         function startScanner() {
@@ -360,37 +381,36 @@
             const productName = productNameInput.value.trim();
             const imageUrl = imageUrlInput.value.trim();
 
-            if (inventory[barcode]) {
-                inventory[barcode].quantity += change;
-                if (inventory[barcode].quantity < 0) {
-                    inventory[barcode].quantity = 0;
-                }
-                if (productName) {
-                    inventory[barcode].productName = productName;
-                }
-                if (imageUrl) {
-                    inventory[barcode].imageUrl = imageUrl;
-                }
-            } else if (change > 0) {
-                // --- 수정된 부분: PC 환경에서만 새 상품 등록을 허용
-                if (!isPC) {
-                    alert('새로운 상품 등록은 PC에서만 가능합니다.');
-                    return;
-                }
-                if (!productName) {
-                    alert('새로운 상품을 등록하려면 상품명을 입력해야 합니다.');
-                    return;
-                }
-                inventory[barcode] = {
-                    productName,
-                    imageUrl,
-                    quantity: change
-                };
+        if (inventory[barcode]) {
+            let newQuantity = inventory[barcode].quantity + change;
+            if (newQuantity < 0) {
+                newQuantity = 0;
             }
+            const updateData = { quantity: newQuantity };
+            if (productName) updateData.productName = productName;
+            if (imageUrl) updateData.imageUrl = imageUrl;
+    
+            inventoryRef.child(barcode).update(updateData); // 이 코드를 추가하세요.
+
+        } else if (change > 0) {
+            if (!isPC) {
+                alert('새로운 상품 등록은 PC에서만 가능합니다.');
+                return;
+            }
+            if (!productName) {
+                alert('새로운 상품을 등록하려면 상품명을 입력해야 합니다.');
+                return;
+            }
+            inventoryRef.child(barcode).set({ // 이 코드를 추가하세요.
+                productName,
+                imageUrl,
+                quantity: change
+            });
+        }        
             
             // 재고 변경 후 1초 딜레이
             setTimeout(() => {
-                localStorage.setItem('inventory', JSON.stringify(inventory));
+                
                 renderInventory();
                 
                 // --- 수정된 부분: 상품 저장 후 필드 정보 지우기
@@ -444,8 +464,8 @@
                         };
                     }
                 }
-                inventory = newInventory;
-                localStorage.setItem('inventory', JSON.stringify(inventory));
+                inventoryRef.set(newInventory)
+                
                 renderInventory();
                 alert('재고 데이터를 성공적으로 불러왔습니다.');
             };
@@ -470,3 +490,4 @@
     </script>
 </body>
 </html>
+
