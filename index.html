@@ -217,10 +217,10 @@
         let isScanning = false;
         let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
         
-        // --- 수정된 부분: 스캔 속도 조절 변수 추가 ---
+        // --- 수정된 부분: 스캔 속도 조절 변수 추가 (2초로 설정) ---
         let lastScanTime = 0;
-        const scanInterval = 1000; // 1초 (1000ms) 동안 재스캔 방지
-        // ---------------------------------------------
+        const scanInterval = 2000; // 2초 (2000ms) 동안 재스캔 방지
+        // ----------------------------------------------------------------
 
         function renderInventory() {
             inventoryList.innerHTML = '';
@@ -302,7 +302,6 @@
             });
 
             Quagga.onDetected(function(data) {
-                // --- 수정된 부분: 스캔 속도 제어 및 필드 업데이트 로직 ---
                 const now = new Date().getTime();
                 if (data && data.codeResult && now - lastScanTime > scanInterval) {
                     const barcode = data.codeResult.code;
@@ -324,7 +323,6 @@
                     // 마지막 스캔 시간 업데이트
                     lastScanTime = now;
                 }
-                // --------------------------------------------------------
             });
         }
 
@@ -344,7 +342,7 @@
                 return;
             }
             
-            const productName = productNameInput.value.trim() || '상품명 없음';
+            const productName = productNameInput.value.trim();
             const imageUrl = imageUrlInput.value.trim();
 
             if (inventory[barcode]) {
@@ -352,14 +350,19 @@
                 if (inventory[barcode].quantity < 0) {
                     inventory[barcode].quantity = 0;
                 }
-                // 상품명과 이미지 URL이 입력된 경우 기존 정보 업데이트
-                if (productNameInput.value.trim() && productNameInput.value.trim() !== '상품명 없음') {
+                // 기존 상품은 입력 필드 값이 있는 경우에만 업데이트
+                if (productName) {
                     inventory[barcode].productName = productName;
                 }
-                if (imageUrlInput.value.trim()) {
+                if (imageUrl) {
                     inventory[barcode].imageUrl = imageUrl;
                 }
             } else if (change > 0) {
+                // --- 수정된 부분: 새로운 상품 등록 시 상품명 필수 검증 ---
+                if (!productName) {
+                    alert('새로운 상품을 등록하려면 상품명을 입력해야 합니다.');
+                    return;
+                }
                 inventory[barcode] = {
                     productName,
                     imageUrl,
@@ -369,6 +372,12 @@
             
             localStorage.setItem('inventory', JSON.stringify(inventory));
             renderInventory();
+
+            // --- 수정된 부분: 상품 추가 후 입력 필드 초기화 ---
+            barcodeInput.value = '';
+            productNameInput.value = '';
+            imageUrlInput.value = '';
+            // ------------------------------------------------------
         }
 
         function exportToCsv() {
@@ -421,8 +430,16 @@
 
         startButton.addEventListener('click', startScanner);
         endScanButton.addEventListener('click', stopScanner);
-        addInButton.addEventListener('click', () => handleInventoryChange(1));
-        takeOutButton.addEventListener('click', () => handleInventoryChange(-1));
+        
+        // --- 수정된 부분: 입고/출고 버튼 클릭 시 필드 초기화 추가 ---
+        addInButton.addEventListener('click', () => {
+            handleInventoryChange(1);
+        });
+        takeOutButton.addEventListener('click', () => {
+            handleInventoryChange(-1);
+        });
+        // ----------------------------------------------------------
+        
         exportButton.addEventListener('click', exportToCsv);
         importFile.addEventListener('change', importFromCsv);
 
