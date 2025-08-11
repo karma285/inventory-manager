@@ -180,8 +180,11 @@
                 <input type="text" id="productNameInput" placeholder="상품명을 입력하세요">
             </div>
             <div class="input-group">
-                <label for="imageUrlInput">이미지 URL</label>
-                <input type="url" id="imageUrlInput" placeholder="상품 이미지 URL을 입력하세요 (선택사항)">
+                <label for="imageUpload">상품 이미지 (JPG)</label>
+                <input type="file" id="imageUpload" accept="image/jpeg">
+            </div>
+            <div>
+                <img id="imagePreview" src="#" alt="미리보기" style="max-width: 100px; max-height: 100px; display: none; margin-bottom: 15px; border-radius: 4px;">
             </div>
             <div class="control-group">
                 <button id="addInButton" style="background-color: #2ecc71;">입고 (+1)</button>
@@ -204,6 +207,8 @@
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+
     <script>
         // Firebase 설정
         const firebaseConfig = {
@@ -218,13 +223,18 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         const inventoryRef = database.ref('inventory');
+        
+        // Firebase Storage 초기화
+        const storage = firebase.storage();
+        const storageRef = storage.ref();
     </script>
     <script>
         const startButton = document.getElementById('startButton');
         const endScanButton = document.getElementById('endScanButton');
         const barcodeInput = document.getElementById('barcodeInput');
         const productNameInput = document.getElementById('productNameInput');
-        const imageUrlInput = document.getElementById('imageUrlInput');
+        const imageUpload = document.getElementById('imageUpload'); // 새롭게 추가된 파일 업로드 input
+        const imagePreview = document.getElementById('imagePreview'); // 새롭게 추가된 이미지 미리보기
         const addInButton = document.getElementById('addInButton');
         const takeOutButton = document.getElementById('takeOutButton');
         const inventoryList = document.getElementById('inventoryList');
@@ -242,6 +252,7 @@
 
         let newProductAlertShown = false;
         const isPC = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        let uploadedImageUrl = null; // 업로드된 이미지 URL을 저장할 변수
 
         function renderInventory() {
             inventoryList.innerHTML = '';
@@ -301,16 +312,16 @@
                     type: "LiveStream",
                     target: document.querySelector('#interactive'),
                     constraints: {
-                        facingMode: { exact: "environment" }, // 후면 카메라 강제 지정
-                        width: { max: 640 },                  // 최대 해상도 제한 (성능 개선)
+                        facingMode: { exact: "environment" },
+                        width: { max: 640 },
                         height: { max: 480 },
-                        frameRate: { max: 10 },               // 최대 FPS 제한
-                        focusMode: "continuous"               // 연속 초점 (가능한 경우)
+                        frameRate: { max: 10 },
+                        focusMode: "continuous"
                     },
-                    area: {                                  // 스캔 영역 최적화 (뷰포트 중간 60%)
-                        top: "20%", 
-                        right: "20%", 
-                        left: "20%", 
+                    area: {
+                        top: "20%",
+                        right: "20%",
+                        left: "20%",
                         bottom: "20%"
                     },
                     singleChannel: false
@@ -338,12 +349,15 @@
                     barcodeInput.value = barcode;
                     if (inventory[barcode]) {
                         productNameInput.value = inventory[barcode].productName;
-                        imageUrlInput.value = inventory[barcode].imageUrl;
+                        // 기존 이미지 URL을 보여주기 위해 미리보기 업데이트
+                        imagePreview.src = inventory[barcode].imageUrl || 'https://via.placeholder.com/60';
+                        imagePreview.style.display = 'block';
                     } else {
                         productNameInput.value = '';
-                        imageUrlInput.value = '';
+                        imagePreview.src = '';
+                        imagePreview.style.display = 'none';
                         if (!newProductAlertShown) {
-                            alert('새로운 상품입니다. 상품명을 입력해 주세요.');
+                            alert('새로운 상품입니다. 상품명과 이미지를 등록해 주세요.');
                             newProductAlertShown = true;
                         }
                     }
@@ -361,16 +375,67 @@
                 newProductAlertShown = false;
             }
         }
+        
+        // JPG 파일 업로드 이벤트 리스너
+        imageUpload.addEventListener('change', function(e) {
+            const file = e.target.files?.[0];
+            if (file) {
+                // 파일 확장자 검사
+                if (file.type !== 'image/jpeg') {
+                    alert('JPG 형식의 이미지만 업로드 가능합니다.');
+                    imageUpload.value = ''; // 파일 선택 취소
+                    imagePreview.style.display = 'none';
+                    uploadedImageUrl = null;
+                    return;
+                }
 
-        function handleInventoryChange(change, scannedBarcode = null) {
-            const barcode = scannedBarcode || barcodeInput.value.trim();
+                // 이미지 미리보기
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+
+                // Firebase Storage에 이미지 업로드
+                const barcode = barcodeInput.value.trim();
+                const imageName = barcode ? `${barcode}_${file.name}` : file.name;
+                const uploadTask = storageRef.child(`images/${imageName}`).put(file);
+                
+                uploadTask.on('state_changed',
+                    (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        console.log('이미지 업로드 중: ' + progress + '% 완료');
+                    },
+                    (error) => {
+                        console.error("이미지 업로드 실패:", error);
+                        alert("이미지 업로드 실패: " + error.message);
+                        uploadedImageUrl = null;
+                    },
+                    () => {
+                        uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
+                            console.log('업로드된 이미지 URL:', downloadURL);
+                            uploadedImageUrl = downloadURL;
+                            alert("이미지 업로드 완료!");
+                        });
+                    }
+                );
+            } else {
+                imagePreview.style.display = 'none';
+                uploadedImageUrl = null;
+            }
+        });
+
+
+        function handleInventoryChange(change) {
+            const barcode = barcodeInput.value.trim();
             if (!barcode) {
                 alert('바코드를 입력해주세요.');
                 return;
             }
             
             const productName = productNameInput.value.trim();
-            const imageUrl = imageUrlInput.value.trim();
+            const imageUrl = uploadedImageUrl || (inventory[barcode] ? inventory[barcode].imageUrl : null);
             
             if (inventory[barcode]) {
                 let newQuantity = inventory[barcode].quantity + change;
@@ -382,6 +447,7 @@
                 if (imageUrl) updateData.imageUrl = imageUrl;
                 inventoryRef.child(barcode).update(updateData);
             } else if (change > 0) {
+                // 모바일에서 새로운 상품 등록 방지
                 if (!isPC) {
                     alert('새로운 상품 등록은 PC에서만 가능합니다.');
                     return;
@@ -400,7 +466,10 @@
             setTimeout(() => {
                 barcodeInput.value = '';
                 productNameInput.value = '';
-                imageUrlInput.value = '';
+                imageUpload.value = ''; // 파일 input 초기화
+                imagePreview.src = ''; // 미리보기 초기화
+                imagePreview.style.display = 'none';
+                uploadedImageUrl = null; // 업로드된 URL 초기화
                 newProductAlertShown = false;
             }, 1000);
         }
@@ -410,7 +479,7 @@
             csvContent += "바코드,상품명,수량,이미지URL\n";
             for (const barcode in inventory) {
                 const item = inventory[barcode];
-                const row = [barcode, item.productName, item.quantity, item.imageUrl].map(field => `"${field}"`).join(',');
+                const row = [barcode, item.productName, item.quantity, item.imageUrl].map(field => `"${field || ''}"`).join(',');
                 csvContent += row + "\n";
             }
             const encodedUri = encodeURI(csvContent);
@@ -470,8 +539,6 @@
         exportButton.addEventListener('click', exportToCsv);
         importFile.addEventListener('change', importFromCsv);
 
-        // 초기 재고 목록 렌더링은 Firebase 리스너가 처리합니다.
     </script>
 </body>
 </html>
-
