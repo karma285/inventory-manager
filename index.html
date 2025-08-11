@@ -8,27 +8,37 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             margin: 0;
-            padding: 10px; /* 패딩을 줄여 화면을 더 넓게 활용 */
+            padding: 10px;
             background-color: #f4f7f9;
             color: #333;
         }
         .container {
-            max-width: 480px; /* 컨테이너 최대 너비를 줄여 모바일 화면에 맞춤 */
+            max-width: 1200px; /* PC 화면에 맞게 최대 너비 확장 */
             margin: 0 auto;
             background-color: #fff;
-            padding: 15px; /* 내부 패딩 조절 */
+            padding: 15px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
         h1 {
-            font-size: 24px; /* 제목 크기 조절 */
+            font-size: 24px;
             color: #2c3e50;
             text-align: center;
             margin-bottom: 15px;
         }
+        .main-content {
+            display: flex;
+            gap: 20px;
+        }
+        .scanner-section {
+            flex: 1; /* PC에서 스캐너 섹션이 공간을 차지하도록 설정 */
+        }
+        .inventory-section {
+            flex: 1; /* PC에서 재고 목록 섹션이 공간을 차지하도록 설정 */
+        }
         #interactive.viewport {
             width: 100%;
-            height: 200px; /* 뷰포트 높이 조절 */
+            height: 200px;
             overflow: hidden;
             border-radius: 8px;
             background-color: #eee;
@@ -43,16 +53,16 @@
         .controls {
             display: flex;
             justify-content: center;
-            gap: 8px; /* 버튼 간격 조절 */
+            gap: 8px;
             margin-bottom: 15px;
         }
         button {
-            padding: 10px 15px; /* 버튼 패딩 조절 */
-            font-size: 14px; /* 버튼 폰트 크기 조절 */
+            padding: 10px 15px;
+            font-size: 14px;
             font-weight: bold;
             color: #fff;
             border: none;
-            border-radius: 6px; /* 버튼 모서리 둥근 정도 조절 */
+            border-radius: 6px;
             cursor: pointer;
             transition: background-color 0.2s;
             flex: 1;
@@ -71,7 +81,7 @@
 
         #resultContainer {
             margin-top: 15px;
-            padding: 12px; /* 내부 패딩 조절 */
+            padding: 12px;
             background-color: #ecf0f1;
             border-radius: 8px;
             border-left: 4px solid #3498db;
@@ -82,35 +92,35 @@
         .input-group label {
             display: block;
             margin-bottom: 4px;
-            font-size: 14px; /* 라벨 폰트 크기 조절 */
+            font-size: 14px;
             font-weight: bold;
         }
         .input-group input {
             width: calc(100% - 16px);
-            padding: 8px; /* 입력 필드 패딩 조절 */
-            font-size: 14px; /* 입력 필드 폰트 크기 조절 */
+            padding: 8px;
+            font-size: 14px;
             border: 1px solid #ddd;
             border-radius: 6px;
         }
         .inventory-item {
             display: flex;
             align-items: center;
-            gap: 10px; /* 간격 조절 */
-            padding: 10px; /* 패딩 조절 */
+            gap: 10px;
+            padding: 10px;
             background-color: #fff;
             border: 1px solid #ddd;
             border-radius: 8px;
             margin-top: 8px;
         }
         .inventory-item img {
-            width: 50px; /* 이미지 크기 조절 */
+            width: 50px;
             height: 50px;
             object-fit: cover;
             border-radius: 4px;
         }
         .item-details {
             flex-grow: 1;
-            font-size: 14px; /* 상품명, 바코드 폰트 크기 조절 */
+            font-size: 14px;
         }
         .item-details span {
             display: block;
@@ -122,7 +132,7 @@
             color: #555;
         }
         .item-details .quantity-input {
-            width: 50px; /* 수량 입력 필드 크기 조절 */
+            width: 50px;
             padding: 4px;
             font-size: 14px;
             text-align: center;
@@ -131,11 +141,11 @@
             background-color: #e74c3c;
             color: #fff;
             border: none;
-            padding: 4px 8px; /* 삭제 버튼 패딩 조절 */
+            padding: 4px 8px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 12px; /* 삭제 버튼 폰트 크기 조절 */
+            font-size: 12px;
         }
         .action-buttons {
             display: flex;
@@ -152,7 +162,7 @@
         .file-upload-label {
             background-color: #9b59b6;
             color: #fff;
-            padding: 10px 15px; /* 패딩 조절 */
+            padding: 10px 15px;
             font-weight: bold;
             font-size: 14px;
             border-radius: 6px;
@@ -165,48 +175,58 @@
             flex: 1;
             font-size: 14px;
         }
+        
+        /* 모바일 환경에서는 기본 레이아웃 유지 */
+        @media (max-width: 767px) {
+            .main-content {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>바코드 재고 관리</h1>
-        <div id="interactive" class="viewport"></div>
-        <div class="controls">
-            <button id="startButton">스캔 시작</button>
-            <button id="endScanButton" style="display:none;">스캔 종료</button>
-        </div>
-
-        <div id="resultContainer">
-            <div class="input-group">
-                <label for="barcodeInput">바코드 번호</label>
-                <input type="text" id="barcodeInput" placeholder="바코드 번호를 수동으로 입력하거나 스캔하세요">
+        <div class="main-content">
+            <div class="scanner-section">
+                <div id="interactive" class="viewport"></div>
+                <div class="controls">
+                    <button id="startButton">스캔 시작</button>
+                    <button id="endScanButton" style="display:none;">스캔 종료</button>
+                </div>
+                <div id="resultContainer">
+                    <div class="input-group">
+                        <label for="barcodeInput">바코드 번호</label>
+                        <input type="text" id="barcodeInput" placeholder="바코드 번호를 수동으로 입력하거나 스캔하세요">
+                    </div>
+                    <div class="input-group">
+                        <label for="productNameInput">상품명</label>
+                        <input type="text" id="productNameInput" placeholder="상품명을 입력하세요">
+                    </div>
+                    <div class="input-group">
+                        <label for="imageUpload">상품 이미지 (JPG)</label>
+                        <input type="file" id="imageUpload" accept="image/jpeg">
+                    </div>
+                    <div>
+                        <img id="imagePreview" src="#" alt="미리보기" style="max-width: 100px; max-height: 100px; display: none; margin-bottom: 15px; border-radius: 4px;">
+                    </div>
+                    <div class="control-group">
+                        <button id="addInButton" style="background-color: #2ecc71;">입고 (+1)</button>
+                        <button id="takeOutButton" style="background-color: #e74c3c;">출고 (-1)</button>
+                    </div>
+                </div>
             </div>
-            <div class="input-group">
-                <label for="productNameInput">상품명</label>
-                <input type="text" id="productNameInput" placeholder="상품명을 입력하세요">
+            <div class="inventory-section">
+                <hr style="margin-top: 30px; border: 0; height: 1px; background-color: #eee;">
+                <h2>현재 재고 목록</h2>
+                <div id="inventoryList">
+                </div>
+                <div class="import-export-buttons">
+                    <label for="importFile" class="file-upload-label">데이터 불러오기</label>
+                    <input type="file" id="importFile" accept=".csv" />
+                    <button id="exportButton">데이터 내보내기</button>
+                </div>
             </div>
-            <div class="input-group">
-                <label for="imageUpload">상품 이미지 (JPG)</label>
-                <input type="file" id="imageUpload" accept="image/jpeg">
-            </div>
-            <div>
-                <img id="imagePreview" src="#" alt="미리보기" style="max-width: 100px; max-height: 100px; display: none; margin-bottom: 15px; border-radius: 4px;">
-            </div>
-            <div class="control-group">
-                <button id="addInButton" style="background-color: #2ecc71;">입고 (+1)</button>
-                <button id="takeOutButton" style="background-color: #e74c3c;">출고 (-1)</button>
-            </div>
-        </div>
-
-        <hr style="margin-top: 30px; border: 0; height: 1px; background-color: #eee;">
-        <h2>현재 재고 목록</h2>
-        <div id="inventoryList">
-        </div>
-        
-        <div class="import-export-buttons">
-            <label for="importFile" class="file-upload-label">데이터 불러오기</label>
-            <input type="file" id="importFile" accept=".csv" />
-            <button id="exportButton">데이터 내보내기</button>
         </div>
     </div>
 
@@ -216,7 +236,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
 
     <script>
-        // Firebase 설정
         const firebaseConfig = {
             apiKey: "AIzaSyAYa14UidbdHqdBfziPIvvZLGUq-ryhxO0",
             authDomain: "inventory-management-8c308.firebaseapp.com",
@@ -231,8 +250,7 @@
         const inventoryRef = database.ref('inventory');
         const storage = firebase.storage();
         const storageRef = storage.ref();
-    </script>
-    <script>
+
         const startButton = document.getElementById('startButton');
         const endScanButton = document.getElementById('endScanButton');
         const barcodeInput = document.getElementById('barcodeInput');
@@ -424,7 +442,6 @@
                 uploadedImageUrl = null;
             }
         });
-
 
         function handleInventoryChange(change) {
             const barcode = barcodeInput.value.trim();
