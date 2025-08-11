@@ -216,11 +216,12 @@
 
         let isScanning = false;
         let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
-        
-        // --- 수정된 부분: 스캔 속도 조절 변수 추가 (2초로 설정) ---
         let lastScanTime = 0;
-        const scanInterval = 2000; // 2초 (2000ms) 동안 재스캔 방지
-        // ----------------------------------------------------------------
+        const scanInterval = 1000; // 1초 (1000ms) 동안 재스캔 방지
+
+        // --- 수정된 부분: 팝업창 한 번만 표시하기 위한 변수
+        let newProductAlertShown = false;
+        // ---------------------------------------------------
 
         function renderInventory() {
             inventoryList.innerHTML = '';
@@ -306,19 +307,22 @@
                 if (data && data.codeResult && now - lastScanTime > scanInterval) {
                     const barcode = data.codeResult.code;
 
-                    // 입력 필드에 바코드와 상품명 표시
+                    // 바코드 필드와 상품명 필드에 정보 표시
                     barcodeInput.value = barcode;
                     if (inventory[barcode]) {
                         productNameInput.value = inventory[barcode].productName;
                         imageUrlInput.value = inventory[barcode].imageUrl;
                     } else {
-                        // 새로운 바코드인 경우 상품명과 이미지 URL 필드 초기화
                         productNameInput.value = '';
                         imageUrlInput.value = '';
-                    }
 
-                    // 재고 1 증가
-                    handleInventoryChange(1, barcode);
+                        // --- 수정된 부분: 새로운 상품 등록 알림 (한 번만) ---
+                        if (!newProductAlertShown) {
+                            alert('새로운 상품입니다. 상품명을 입력해 주세요.');
+                            newProductAlertShown = true;
+                        }
+                        // ---------------------------------------------------
+                    }
 
                     // 마지막 스캔 시간 업데이트
                     lastScanTime = now;
@@ -332,6 +336,9 @@
                 isScanning = false;
                 startButton.style.display = 'inline-block';
                 endScanButton.style.display = 'none';
+                // --- 수정된 부분: 스캐너 중지 시 팝업 상태 초기화 ---
+                newProductAlertShown = false;
+                // ----------------------------------------------------
             }
         }
 
@@ -350,7 +357,6 @@
                 if (inventory[barcode].quantity < 0) {
                     inventory[barcode].quantity = 0;
                 }
-                // 기존 상품은 입력 필드 값이 있는 경우에만 업데이트
                 if (productName) {
                     inventory[barcode].productName = productName;
                 }
@@ -358,7 +364,6 @@
                     inventory[barcode].imageUrl = imageUrl;
                 }
             } else if (change > 0) {
-                // --- 수정된 부분: 새로운 상품 등록 시 상품명 필수 검증 ---
                 if (!productName) {
                     alert('새로운 상품을 등록하려면 상품명을 입력해야 합니다.');
                     return;
@@ -370,14 +375,20 @@
                 };
             }
             
-            localStorage.setItem('inventory', JSON.stringify(inventory));
-            renderInventory();
-
-            // --- 수정된 부분: 상품 추가 후 입력 필드 초기화 ---
-            barcodeInput.value = '';
-            productNameInput.value = '';
-            imageUrlInput.value = '';
-            // ------------------------------------------------------
+            // --- 수정된 부분: 재고 변경 후 1초 딜레이 추가 ---
+            setTimeout(() => {
+                localStorage.setItem('inventory', JSON.stringify(inventory));
+                renderInventory();
+                
+                barcodeInput.value = '';
+                productNameInput.value = '';
+                imageUrlInput.value = '';
+                
+                // --- 수정된 부분: 팝업 상태 초기화 ---
+                newProductAlertShown = false;
+                // ----------------------------------------
+            }, 1000); // 1000ms = 1초 딜레이
+            // ---------------------------------------------
         }
 
         function exportToCsv() {
@@ -431,14 +442,12 @@
         startButton.addEventListener('click', startScanner);
         endScanButton.addEventListener('click', stopScanner);
         
-        // --- 수정된 부분: 입고/출고 버튼 클릭 시 필드 초기화 추가 ---
         addInButton.addEventListener('click', () => {
             handleInventoryChange(1);
         });
         takeOutButton.addEventListener('click', () => {
             handleInventoryChange(-1);
         });
-        // ----------------------------------------------------------
         
         exportButton.addEventListener('click', exportToCsv);
         importFile.addEventListener('change', importFromCsv);
