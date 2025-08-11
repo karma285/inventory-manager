@@ -13,7 +13,7 @@
             color: #333;
         }
         .container {
-            max-width: 1200px; /* PC 화면에 맞게 최대 너비 확장 */
+            max-width: 1200px;
             margin: 0 auto;
             background-color: #fff;
             padding: 15px;
@@ -31,10 +31,10 @@
             gap: 20px;
         }
         .scanner-section {
-            flex: 1; /* PC에서 스캐너 섹션이 공간을 차지하도록 설정 */
+            flex: 1;
         }
         .inventory-section {
-            flex: 1; /* PC에서 재고 목록 섹션이 공간을 차지하도록 설정 */
+            flex: 1;
         }
         #interactive.viewport {
             width: 100%;
@@ -72,13 +72,14 @@
             gap: 8px;
             margin-top: 8px;
         }
+        #addInButton { background-color: #2ecc71; }
+        #takeOutButton { background-color: #e74c3c; }
         #startButton { background-color: #2ecc71; }
         #stopButton { background-color: #e74c3c; }
         #endScanButton { background-color: #3498db; }
         #startButton:hover { background-color: #27ae60; }
         #stopButton:hover { background-color: #c0392b; }
         #endScanButton:hover { background-color: #2980b9; }
-
         #resultContainer {
             margin-top: 15px;
             padding: 12px;
@@ -176,7 +177,6 @@
             font-size: 14px;
         }
         
-        /* 모바일 환경에서는 기본 레이아웃 유지 */
         @media (max-width: 767px) {
             .main-content {
                 flex-direction: column;
@@ -367,21 +367,24 @@
                 const now = new Date().getTime();
                 if (data && data.codeResult && now - lastScanTime > scanInterval) {
                     const barcode = data.codeResult.code;
-
-                    barcodeInput.value = barcode;
-                    if (inventory[barcode]) {
-                        productNameInput.value = inventory[barcode].productName;
-                        imagePreview.src = inventory[barcode].imageUrl || 'https://via.placeholder.com/50';
-                        imagePreview.style.display = 'block';
-                    } else {
-                        productNameInput.value = '';
-                        imagePreview.src = '';
-                        imagePreview.style.display = 'none';
-                        if (!newProductAlertShown) {
-                            alert('새로운 상품입니다. 상품명과 이미지를 등록해 주세요.');
-                            newProductAlertShown = true;
+                    
+                    // PC에서 스캔 시 바코드 입력 필드에 자동으로 값 채우기
+                    if (isPC) {
+                        barcodeInput.value = barcode;
+                        
+                        // 기존 상품인지 확인하고 상품명 채우기
+                        if (inventory[barcode]) {
+                            productNameInput.value = inventory[barcode].productName;
+                            imagePreview.src = inventory[barcode].imageUrl || 'https://via.placeholder.com/50';
+                            imagePreview.style.display = 'block';
+                            alert(`상품명: ${inventory[barcode].productName}\n현재 재고: ${inventory[barcode].quantity}개`);
+                        } else {
+                            productNameInput.value = '새로운 상품명을 입력해주세요';
+                            imagePreview.src = '';
+                            imagePreview.style.display = 'none';
                         }
                     }
+                    
                     lastScanTime = now;
                 }
             });
@@ -467,7 +470,7 @@
                     alert('새로운 상품 등록은 PC에서만 가능합니다.');
                     return;
                 }
-                if (!productName) {
+                if (!productName || productName === '새로운 상품명을 입력해주세요') {
                     alert('새로운 상품을 등록하려면 상품명을 입력해야 합니다.');
                     return;
                 }
