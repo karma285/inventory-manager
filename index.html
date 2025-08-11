@@ -1,469 +1,469 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>바코드 재고 관리</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f7f9;
-            color: #333;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        #interactive.viewport {
-            width: 100%;
-            height: 250px;
-            overflow: hidden;
-            border-radius: 8px;
-            background-color: #eee;
-            position: relative;
-            margin-bottom: 20px;
-        }
-        #interactive video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .controls {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        button {
-            padding: 12px 20px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            flex: 1;
-        }
-        .control-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        #startButton { background-color: #2ecc71; }
-        #stopButton { background-color: #e74c3c; }
-        #endScanButton { background-color: #3498db; }
-        #startButton:hover { background-color: #27ae60; }
-        #stopButton:hover { background-color: #c0392b; }
-        #endScanButton:hover { background-color: #2980b9; }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>바코드 재고 관리</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f9;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #interactive.viewport {
+            width: 100%;
+            height: 250px;
+            overflow: hidden;
+            border-radius: 8px;
+            background-color: #eee;
+            position: relative;
+            margin-bottom: 20px;
+        }
+        #interactive video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            flex: 1;
+        }
+        .control-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        #startButton { background-color: #2ecc71; }
+        #stopButton { background-color: #e74c3c; }
+        #endScanButton { background-color: #3498db; }
+        #startButton:hover { background-color: #27ae60; }
+        #stopButton:hover { background-color: #c0392b; }
+        #endScanButton:hover { background-color: #2980b9; }
 
-        #resultContainer {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #ecf0f1;
-            border-radius: 8px;
-            border-left: 5px solid #3498db;
-        }
-        .input-group {
-            margin-bottom: 15px;
-        }
-        .input-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        .input-group input {
-            width: calc(100% - 20px);
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-        .inventory-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 12px;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
-        .inventory-item img {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 4px;
-        }
-        .item-details {
-            flex-grow: 1;
-        }
-        .item-details span {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .item-details .quantity {
-            font-weight: normal;
-            color: #555;
-        }
-        .item-details .quantity-input {
-            width: 60px;
-            padding: 5px;
-            font-size: 16px;
-            text-align: center;
-        }
-        .delete-button {
-            background-color: #e74c3c;
-            color: #fff;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-        }
-        .import-export-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        #importFile {
-            display: none;
-        }
-        .file-upload-label {
-            background-color: #9b59b6;
-            color: #fff;
-            padding: 12px 20px;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            text-align: center;
-            flex: 1;
-        }
-        #exportButton {
-            background-color: #2c3e50;
-            flex: 1;
-        }
-    </style>
+        #resultContainer {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #ecf0f1;
+            border-radius: 8px;
+            border-left: 5px solid #3498db;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-group input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .inventory-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .inventory-item img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .item-details {
+            flex-grow: 1;
+        }
+        .item-details span {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .item-details .quantity {
+            font-weight: normal;
+            color: #555;
+        }
+        .item-details .quantity-input {
+            width: 60px;
+            padding: 5px;
+            font-size: 16px;
+            text-align: center;
+        }
+        .delete-button {
+            background-color: #e74c3c;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .import-export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        #importFile {
+            display: none;
+        }
+        .file-upload-label {
+            background-color: #9b59b6;
+            color: #fff;
+            padding: 12px 20px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            flex: 1;
+        }
+        #exportButton {
+            background-color: #2c3e50;
+            flex: 1;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>바코드 재고 관리</h1>
-        <div id="interactive" class="viewport"></div>
-        <div class="controls">
-            <button id="startButton">스캔 시작</button>
-            <button id="endScanButton" style="display:none;">스캔 종료</button>
-        </div>
+    <div class="container">
+        <h1>바코드 재고 관리</h1>
+        <div id="interactive" class="viewport"></div>
+        <div class="controls">
+            <button id="startButton">스캔 시작</button>
+            <button id="endScanButton" style="display:none;">스캔 종료</button>
+        </div>
 
-        <div id="resultContainer">
-            <div class="input-group">
-                <label for="barcodeInput">바코드 번호</label>
-                <input type="text" id="barcodeInput" placeholder="바코드 번호를 수동으로 입력하거나 스캔하세요">
-            </div>
-            <div class="input-group">
-                <label for="productNameInput">상품명</label>
-                <input type="text" id="productNameInput" placeholder="상품명을 입력하세요">
-            </div>
-            <div class="input-group">
-                <label for="imageUrlInput">이미지 URL</label>
-                <input type="url" id="imageUrlInput" placeholder="상품 이미지 URL을 입력하세요 (선택사항)">
-            </div>
-            <div class="control-group">
-                <button id="addInButton" style="background-color: #2ecc71;">입고 (+1)</button>
-                <button id="takeOutButton" style="background-color: #e74c3c;">출고 (-1)</button>
-            </div>
-        </div>
+        <div id="resultContainer">
+            <div class="input-group">
+                <label for="barcodeInput">바코드 번호</label>
+                <input type="text" id="barcodeInput" placeholder="바코드 번호를 수동으로 입력하거나 스캔하세요">
+            </div>
+            <div class="input-group">
+                <label for="productNameInput">상품명</label>
+                <input type="text" id="productNameInput" placeholder="상품명을 입력하세요">
+            </div>
+            <div class="input-group">
+                <label for="imageUrlInput">이미지 URL</label>
+                <input type="url" id="imageUrlInput" placeholder="상품 이미지 URL을 입력하세요 (선택사항)">
+            </div>
+            <div class="control-group">
+                <button id="addInButton" style="background-color: #2ecc71;">입고 (+1)</button>
+                <button id="takeOutButton" style="background-color: #e74c3c;">출고 (-1)</button>
+            </div>
+        </div>
 
-        <hr style="margin-top: 30px; border: 0; height: 1px; background-color: #eee;">
-        <h2>현재 재고 목록</h2>
-        <div id="inventoryList">
-        </div>
-        
-        <div class="import-export-buttons">
-            <label for="importFile" class="file-upload-label">데이터 불러오기</label>
-            <input type="file" id="importFile" accept=".csv" />
-            <button id="exportButton">데이터 내보내기</button>
-        </div>
-    </div>
+        <hr style="margin-top: 30px; border: 0; height: 1px; background-color: #eee;">
+        <h2>현재 재고 목록</h2>
+        <div id="inventoryList">
+        </div>
+        
+        <div class="import-export-buttons">
+            <label for="importFile" class="file-upload-label">데이터 불러오기</label>
+            <input type="file" id="importFile" accept=".csv" />
+            <button id="exportButton">데이터 내보내기</button>
+        </div>
+    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script>
-        // Firebase 설정
-        const firebaseConfig = {
-            apiKey: "AIzaSyAYa14UidbdHqdBfziPIvvZLGUq-ryhxO0",
-            authDomain: "inventory-management-8c308.firebaseapp.com",
-            databaseURL: "https://inventory-management-8c308-default-rtdb.firebaseio.com",
-            projectId: "inventory-management-8c308",
-            storageBucket: "inventory-management-8c308.firebasestorage.app",
-            messagingSenderId: "284689826369",
-            appId: "1:284689826369:web:0d74e008a99bd00289fcc0"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const inventoryRef = database.ref('inventory');
-    </script>
-    <script>
-        const startButton = document.getElementById('startButton');
-        const endScanButton = document.getElementById('endScanButton');
-        const barcodeInput = document.getElementById('barcodeInput');
-        const productNameInput = document.getElementById('productNameInput');
-        const imageUrlInput = document.getElementById('imageUrlInput');
-        const addInButton = document.getElementById('addInButton');
-        const takeOutButton = document.getElementById('takeOutButton');
-        const inventoryList = document.getElementById('inventoryList');
-        const importFile = document.getElementById('importFile');
-        const exportButton = document.getElementById('exportButton');
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script>
+        // Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyAYa14UidbdHqdBfziPIvvZLGUq-ryhxO0",
+            authDomain: "inventory-management-8c308.firebaseapp.com",
+            databaseURL: "https://inventory-management-8c308-default-rtdb.firebaseio.com",
+            projectId: "inventory-management-8c308",
+            storageBucket: "inventory-management-8c308.firebasestorage.app",
+            messagingSenderId: "284689826369",
+            appId: "1:284689826369:web:0d74e008a99bd00289fcc0"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const inventoryRef = database.ref('inventory');
+    </script>
+    <script>
+        const startButton = document.getElementById('startButton');
+        const endScanButton = document.getElementById('endScanButton');
+        const barcodeInput = document.getElementById('barcodeInput');
+        const productNameInput = document.getElementById('productNameInput');
+        const imageUrlInput = document.getElementById('imageUrlInput');
+        const addInButton = document.getElementById('addInButton');
+        const takeOutButton = document.getElementById('takeOutButton');
+        const inventoryList = document.getElementById('inventoryList');
+        const importFile = document.getElementById('importFile');
+        const exportButton = document.getElementById('exportButton');
 
-        let isScanning = false;
-        let inventory = {};
-        inventoryRef.on('value', (snapshot) => {
-            inventory = snapshot.val() || {};
-            renderInventory();
-        });
-        let lastScanTime = 0;
-        const scanInterval = 1000; // 1초 (1000ms) 동안 재스캔 방지
+        let isScanning = false;
+        let inventory = {};
+        inventoryRef.on('value', (snapshot) => {
+            inventory = snapshot.val() || {};
+            renderInventory();
+        });
+        let lastScanTime = 0;
+        const scanInterval = 1000; // 1초 (1000ms) 동안 재스캔 방지
 
-        let newProductAlertShown = false;
-        const isPC = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        let newProductAlertShown = false;
+        const isPC = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-        function renderInventory() {
-            inventoryList.innerHTML = '';
-            const barcodes = Object.keys(inventory).sort();
-            barcodes.forEach(barcode => {
-                const item = inventory[barcode];
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'inventory-item';
-                itemDiv.innerHTML = `
-                    <img src="${item.imageUrl || 'https://via.placeholder.com/60'}" alt="상품 이미지">
-                    <div class="item-details">
-                        <span>${item.productName || '상품명 없음'}</span>
-                        <span class="quantity">수량: <span class="quantity-value">${item.quantity}</span></span>
-                        <small>바코드: ${barcode}</small>
-                    </div>
-                    <button class="delete-button" data-barcode="${barcode}">삭제</button>
-                `;
-                inventoryList.appendChild(itemDiv);
+        function renderInventory() {
+            inventoryList.innerHTML = '';
+            const barcodes = Object.keys(inventory).sort();
+            barcodes.forEach(barcode => {
+                const item = inventory[barcode];
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'inventory-item';
+                itemDiv.innerHTML = `
+                    <img src="${item.imageUrl || 'https://via.placeholder.com/60'}" alt="상품 이미지">
+                    <div class="item-details">
+                        <span>${item.productName || '상품명 없음'}</span>
+                        <span class="quantity">수량: <span class="quantity-value">${item.quantity}</span></span>
+                        <small>바코드: ${barcode}</small>
+                    </div>
+                    <button class="delete-button" data-barcode="${barcode}">삭제</button>
+                `;
+                inventoryList.appendChild(itemDiv);
 
-                const quantityValueElement = itemDiv.querySelector('.quantity-value');
-                quantityValueElement.addEventListener('click', () => {
-                    const currentQuantity = parseInt(quantityValueElement.textContent);
-                    const input = document.createElement('input');
-                    input.type = 'number';
-                    input.className = 'quantity-input';
-                    input.value = currentQuantity;
-                    quantityValueElement.replaceWith(input);
+                const quantityValueElement = itemDiv.querySelector('.quantity-value');
+                quantityValueElement.addEventListener('click', () => {
+                    const currentQuantity = parseInt(quantityValueElement.textContent);
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.className = 'quantity-input';
+                    input.value = currentQuantity;
+                    quantityValueElement.replaceWith(input);
 
-                    input.focus();
-                    input.addEventListener('blur', () => {
-                        const newQuantity = parseInt(input.value);
-                        if (!isNaN(newQuantity)) {
-                            inventoryRef.child(barcode).update({ quantity: newQuantity });
-                        } else {
-                            renderInventory();
-                        }
-                    });
-                });
-            });
+                    input.focus();
+                    input.addEventListener('blur', () => {
+                        const newQuantity = parseInt(input.value);
+                        if (!isNaN(newQuantity)) {
+                            inventoryRef.child(barcode).update({ quantity: newQuantity });
+                        } else {
+                            renderInventory();
+                        }
+                    });
+                });
+            });
 
-            if (Object.keys(inventory).length === 0) {
-                inventoryList.innerHTML = '<p style="text-align: center; color: #777;">재고가 없습니다.</p>';
-            }
+            if (Object.keys(inventory).length === 0) {
+                inventoryList.innerHTML = '<p style="text-align: center; color: #777;">재고가 없습니다.</p>';
+            }
 
-            document.querySelectorAll('.delete-button').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const barcodeToDelete = event.target.dataset.barcode;
-                    inventoryRef.child(barcodeToDelete).remove();
-                });
-            });
-        }
+            document.querySelectorAll('.delete-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const barcodeToDelete = event.target.dataset.barcode;
+                    inventoryRef.child(barcodeToDelete).remove();
+                });
+            });
+        }
 
-        function startScanner() {
-            Quagga.init({
-                inputStream: {
-                    name: "Live",
-                    type: "LiveStream",
-                    target: document.querySelector('#interactive'),
-                    constraints: {
-                        facingMode: "environment",
-                        focusMode: "auto",
-                        advanced: [{
-                            torch: true,
-                            exposureMode: "auto"
-                        }]
-                    },
-                },
-                decoder: {
-                    readers: ["ean_reader", "code_128_reader", "code_39_reader", "upc_reader"]
-                }
-            }, function(err) {
-                if (err) {
-                    alert('카메라 접근 실패: ' + err.message);
-                    return;
-                }
-                Quagga.start();
-                isScanning = true;
-                startButton.style.display = 'none';
-                endScanButton.style.display = 'inline-block';
-            });
+        function startScanner() {
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#interactive'),
+                    constraints: {
+                        facingMode: "environment",
+                        focusMode: "auto",
+                        advanced: [{
+                            torch: true,
+                            exposureMode: "auto"
+                        }]
+                    },
+                },
+                decoder: {
+                    readers: ["ean_reader", "code_128_reader", "code_39_reader", "upc_reader"]
+                }
+            }, function(err) {
+                if (err) {
+                    alert('카메라 접근 실패: ' + err.message);
+                    return;
+                }
+                Quagga.start();
+                isScanning = true;
+                startButton.style.display = 'none';
+                endScanButton.style.display = 'inline-block';
+            });
 
-            Quagga.onDetected(function(data) {
-                const now = new Date().getTime();
-                if (data && data.codeResult && now - lastScanTime > scanInterval) {
-                    const barcode = data.codeResult.code;
+            Quagga.onDetected(function(data) {
+                const now = new Date().getTime();
+                if (data && data.codeResult && now - lastScanTime > scanInterval) {
+                    const barcode = data.codeResult.code;
 
-                    barcodeInput.value = barcode;
-                    if (inventory[barcode]) {
-                        productNameInput.value = inventory[barcode].productName;
-                        imageUrlInput.value = inventory[barcode].imageUrl;
-                    } else {
-                        productNameInput.value = '';
-                        imageUrlInput.value = '';
-                        if (!newProductAlertShown) {
-                            alert('새로운 상품입니다. 상품명을 입력해 주세요.');
-                            newProductAlertShown = true;
-                        }
-                    }
-                    lastScanTime = now;
-                }
-            });
-        }
+                    barcodeInput.value = barcode;
+                    if (inventory[barcode]) {
+                        productNameInput.value = inventory[barcode].productName;
+                        imageUrlInput.value = inventory[barcode].imageUrl;
+                    } else {
+                        productNameInput.value = '';
+                        imageUrlInput.value = '';
+                        if (!newProductAlertShown) {
+                            alert('새로운 상품입니다. 상품명을 입력해 주세요.');
+                            newProductAlertShown = true;
+                        }
+                    }
+                    lastScanTime = now;
+                }
+            });
+        }
 
-        function stopScanner() {
-            if (isScanning) {
-                Quagga.stop();
-                isScanning = false;
-                startButton.style.display = 'inline-block';
-                endScanButton.style.display = 'none';
-                newProductAlertShown = false;
-            }
-        }
+        function stopScanner() {
+            if (isScanning) {
+                Quagga.stop();
+                isScanning = false;
+                startButton.style.display = 'inline-block';
+                endScanButton.style.display = 'none';
+                newProductAlertShown = false;
+            }
+        }
 
-        function handleInventoryChange(change, scannedBarcode = null) {
-            const barcode = scannedBarcode || barcodeInput.value.trim();
-            if (!barcode) {
-                alert('바코드를 입력해주세요.');
-                return;
-            }
-            
-            const productName = productNameInput.value.trim();
-            const imageUrl = imageUrlInput.value.trim();
-            
-            if (inventory[barcode]) {
-                let newQuantity = inventory[barcode].quantity + change;
-                if (newQuantity < 0) {
-                    newQuantity = 0;
-                }
-                const updateData = { quantity: newQuantity };
-                if (productName) updateData.productName = productName;
-                if (imageUrl) updateData.imageUrl = imageUrl;
-                inventoryRef.child(barcode).update(updateData);
-            } else if (change > 0) {
-                if (!isPC) {
-                    alert('새로운 상품 등록은 PC에서만 가능합니다.');
-                    return;
-                }
-                if (!productName) {
-                    alert('새로운 상품을 등록하려면 상품명을 입력해야 합니다.');
-                    return;
-                }
-                inventoryRef.child(barcode).set({
-                    productName,
-                    imageUrl,
-                    quantity: change
-                });
-            }
-            
-            setTimeout(() => {
-                barcodeInput.value = '';
-                productNameInput.value = '';
-                imageUrlInput.value = '';
-                newProductAlertShown = false;
-            }, 1000);
-        }
+        function handleInventoryChange(change, scannedBarcode = null) {
+            const barcode = scannedBarcode || barcodeInput.value.trim();
+            if (!barcode) {
+                alert('바코드를 입력해주세요.');
+                return;
+            }
+            
+            const productName = productNameInput.value.trim();
+            const imageUrl = imageUrlInput.value.trim();
+            
+            if (inventory[barcode]) {
+                let newQuantity = inventory[barcode].quantity + change;
+                if (newQuantity < 0) {
+                    newQuantity = 0;
+                }
+                const updateData = { quantity: newQuantity };
+                if (productName) updateData.productName = productName;
+                if (imageUrl) updateData.imageUrl = imageUrl;
+                inventoryRef.child(barcode).update(updateData);
+            } else if (change > 0) {
+                if (!isPC) {
+                    alert('새로운 상품 등록은 PC에서만 가능합니다.');
+                    return;
+                }
+                if (!productName) {
+                    alert('새로운 상품을 등록하려면 상품명을 입력해야 합니다.');
+                    return;
+                }
+                inventoryRef.child(barcode).set({
+                    productName,
+                    imageUrl,
+                    quantity: change
+                });
+            }
+            
+            setTimeout(() => {
+                barcodeInput.value = '';
+                productNameInput.value = '';
+                imageUrlInput.value = '';
+                newProductAlertShown = false;
+            }, 1000);
+        }
 
-        function exportToCsv() {
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            csvContent += "바코드,상품명,수량,이미지URL\n";
-            for (const barcode in inventory) {
-                const item = inventory[barcode];
-                const row = [barcode, item.productName, item.quantity, item.imageUrl].map(field => `"${field}"`).join(',');
-                csvContent += row + "\n";
-            }
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "inventory.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            alert('재고 데이터를 CSV 파일로 내보냈습니다.');
-        }
+        function exportToCsv() {
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+            csvContent += "바코드,상품명,수량,이미지URL\n";
+            for (const barcode in inventory) {
+                const item = inventory[barcode];
+                const row = [barcode, item.productName, item.quantity, item.imageUrl].map(field => `"${field}"`).join(',');
+                csvContent += row + "\n";
+            }
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "inventory.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            alert('재고 데이터를 CSV 파일로 내보냈습니다.');
+        }
 
-        function importFromCsv(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        function importFromCsv(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const text = e.target.result;
-                const rows = text.split('\n');
-                let newInventory = {};
-                for (let i = 1; i < rows.length; i++) {
-                    const row = rows[i].trim();
-                    if (!row) continue;
-                    const columns = row.split(',').map(field => field.replace(/"/g, ''));
-                    const [barcode, productName, quantity, imageUrl] = columns;
-                    if (barcode && quantity) {
-                        newInventory[barcode] = {
-                            productName: productName || '상품명 없음',
-                            imageUrl: imageUrl || '',
-                            quantity: parseInt(quantity) || 0
-                        };
-                    }
-                }
-                inventoryRef.set(newInventory)
-                    .then(() => {
-                        alert('재고 데이터를 성공적으로 불러왔습니다.');
-                    })
-                    .catch(error => {
-                        console.error('Error uploading to Firebase:', error);
-                        alert('데이터 업로드 중 오류가 발생했습니다.');
-                    });
-            };
-            reader.readAsText(file);
-        }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const rows = text.split('\n');
+                let newInventory = {};
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i].trim();
+                    if (!row) continue;
+                    const columns = row.split(',').map(field => field.replace(/"/g, ''));
+                    const [barcode, productName, quantity, imageUrl] = columns;
+                    if (barcode && quantity) {
+                        newInventory[barcode] = {
+                            productName: productName || '상품명 없음',
+                            imageUrl: imageUrl || '',
+                            quantity: parseInt(quantity) || 0
+                        };
+                    }
+                }
+                inventoryRef.set(newInventory)
+                    .then(() => {
+                        alert('재고 데이터를 성공적으로 불러왔습니다.');
+                    })
+                    .catch(error => {
+                        console.error('Error uploading to Firebase:', error);
+                        alert('데이터 업로드 중 오류가 발생했습니다.');
+                    });
+            };
+            reader.readAsText(file);
+        }
 
-        startButton.addEventListener('click', startScanner);
-        endScanButton.addEventListener('click', stopScanner);
-        
-        addInButton.addEventListener('click', () => {
-            handleInventoryChange(1);
-        });
-        takeOutButton.addEventListener('click', () => {
-            handleInventoryChange(-1);
-        });
-        
-        exportButton.addEventListener('click', exportToCsv);
-        importFile.addEventListener('change', importFromCsv);
+        startButton.addEventListener('click', startScanner);
+        endScanButton.addEventListener('click', stopScanner);
+        
+        addInButton.addEventListener('click', () => {
+            handleInventoryChange(1);
+        });
+        takeOutButton.addEventListener('click', () => {
+            handleInventoryChange(-1);
+        });
+        
+        exportButton.addEventListener('click', exportToCsv);
+        importFile.addEventListener('change', importFromCsv);
 
-        // 초기 재고 목록 렌더링은 Firebase 리스너가 처리합니다.
-    </script>
+        // 초기 재고 목록 렌더링은 Firebase 리스너가 처리합니다.
+    </script>
 </body>
 </html>
