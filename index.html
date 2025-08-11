@@ -301,17 +301,24 @@
                     type: "LiveStream",
                     target: document.querySelector('#interactive'),
                     constraints: {
-                        facingMode: "environment",
-                        focusMode: "auto",
-                        advanced: [{
-                            torch: true,
-                            exposureMode: "auto"
-                        }]
+                        facingMode: { exact: "environment" }, // 후면 카메라 강제 지정
+                        width: { max: 640 },                  // 최대 해상도 제한 (성능 개선)
+                        height: { max: 480 },
+                        frameRate: { max: 10 },               // 최대 FPS 제한
+                        focusMode: "continuous"               // 연속 초점 (가능한 경우)
                     },
+                    area: {                                  // 스캔 영역 최적화 (뷰포트 중간 60%)
+                        top: "20%", 
+                        right: "20%", 
+                        left: "20%", 
+                        bottom: "20%"
+                    },
+                    singleChannel: false
                 },
                 decoder: {
                     readers: ["ean_reader", "code_128_reader", "code_39_reader", "upc_reader"]
-                }
+                },
+                locate: true
             }, function(err) {
                 if (err) {
                     alert('카메라 접근 실패: ' + err.message);
@@ -467,3 +474,4 @@
     </script>
 </body>
 </html>
+
